@@ -6,7 +6,7 @@ zephyr_include_directories(
     include
 )
 
-zephyr_library_sources_ifdef(CONFIG_MY_WATCHDOG_MODULE  src/watchdog.c)
+zephyr_library_sources_ifdef(CONFIG_MY_MODULE_BASE_WATCHDOG     src/watchdog.c)
 
 
 

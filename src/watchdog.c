@@ -4,7 +4,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(init, LOG_LEVEL_DBG);
 
-#include "init.h"
+#include "watchdog.h"
 
 
 static int watchdog_new_channel(const struct device *wdt)

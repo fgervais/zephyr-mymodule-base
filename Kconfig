@@ -1,4 +1,4 @@
-config MY_WATCHDOG_MODULE
-	bool "Watchdog module support"
+config MY_MODULE_BASE_WATCHDOG
+	bool "Watchdog support"
 	help
 	  .

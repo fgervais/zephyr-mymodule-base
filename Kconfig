@@ -1,3 +1,13 @@
+config MY_MODULE_BASE_RESET
+	bool "Reset support"
+	help
+	  .
+
+config MY_MODULE_BASE_UID
+	bool "Unique ID support"
+	help
+	  .
+
 config MY_MODULE_BASE_WATCHDOG
 	bool "Watchdog support"
 	help

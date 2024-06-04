@@ -2,4 +2,4 @@ name: base
 
 build:
   cmake: .
-  kconfig: .
+  kconfig: Kconfig

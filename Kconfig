@@ -1,0 +1,7 @@
+menu "My Modules"
+config MY_WATCHDOG_MODULE
+	bool "Watchdog module support"
+	help
+	  .
+
+endmenu

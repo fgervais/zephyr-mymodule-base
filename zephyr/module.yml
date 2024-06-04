@@ -1,0 +1,5 @@
+name: base
+
+build:
+  cmake: .
+  kconfig: .

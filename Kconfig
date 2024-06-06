@@ -12,3 +12,8 @@ config MY_MODULE_BASE_WATCHDOG
 	bool "Watchdog support"
 	help
 	  .
+
+config MY_MODULE_BASE_HOME_ASSISTANT
+	bool "Watchdog support"
+	help
+	  .

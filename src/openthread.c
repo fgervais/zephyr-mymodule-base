@@ -273,7 +273,8 @@ static void receive_latency_management_thread_function(void)
 	}
 }
 
-K_THREAD_DEFINE(receive_latency_thread, CONFIG_APP_OT_LATENCY_THREAD_STACK_SIZE,
+K_THREAD_DEFINE(receive_latency_thread,
+		CONFIG_MY_MODULE_BASE_HA_OT_LATENCY_THREAD_STACK_SIZE,
 		receive_latency_management_thread_function, NULL, NULL, NULL,
 		-2, 0, SYS_FOREVER_MS);
 

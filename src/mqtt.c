@@ -13,8 +13,8 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 #define MQTT_EVENT_CONNECTED		BIT(0)
 
 
-static uint8_t rx_buffer[CONFIG_APP_MQTT_BUFFER_SIZE];
-static uint8_t tx_buffer[CONFIG_APP_MQTT_BUFFER_SIZE];
+static uint8_t rx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
+static uint8_t tx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
 
 static struct mqtt_client client_ctx;
 
@@ -87,13 +87,13 @@ static void broker_init(void)
 	struct sockaddr_in6 *broker6 = (struct sockaddr_in6 *)&broker;
 
 	broker6->sin6_family = AF_INET6;
-	broker6->sin6_port = htons(CONFIG_APP_MQTT_SERVER_PORT);
+	broker6->sin6_port = htons(CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT);
 
 #if defined(CONFIG_DNS_RESOLVER)
 	net_ipaddr_copy(&broker6->sin6_addr,
 			&net_sin6(haddr->ai_addr)->sin6_addr);
 #else
-	zsock_inet_pton(AF_INET6, CONFIG_APP_MQTT_SERVER_ADDR, &broker6->sin_addr);
+	zsock_inet_pton(AF_INET6, CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_ADDR, &broker6->sin_addr);
 #endif
 
 	k_work_init_delayable(&keepalive_work, keepalive);
@@ -331,7 +331,8 @@ static void mqtt_receive_thread_function(void)
 	}
 }
 
-K_THREAD_DEFINE(mqtt_receive_thread, CONFIG_APP_MQTT_RECEIVE_THREAD_STACK_SIZE,
+K_THREAD_DEFINE(mqtt_receive_thread,
+		CONFIG_MY_MODULE_BASE_HA_MQTT_RECEIVE_THREAD_STACK_SIZE,
 		mqtt_receive_thread_function, NULL, NULL, NULL,
 		K_LOWEST_APPLICATION_THREAD_PRIO, 0, SYS_FOREVER_MS);
 
@@ -408,9 +409,9 @@ static int get_mqtt_broker_addrinfo(void)
 		// Return value:
 		// zephyr/include/zephyr/net/dns_resolve.h
 		// enum dns_resolve_status
-		rc = getaddrinfo(CONFIG_APP_MQTT_SERVER_HOSTNAME,
-				       STRINGIFY(CONFIG_APP_MQTT_SERVER_PORT),
-				       &hints, &haddr);
+		rc = getaddrinfo(CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME,
+				 STRINGIFY(CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT),
+				 &hints, &haddr);
 
 		openthread_request_normal_latency("getaddrinfo done");
 
@@ -418,8 +419,8 @@ static int get_mqtt_broker_addrinfo(void)
 			char atxt[INET6_ADDRSTRLEN] = { 0 };
 
 			LOG_INF("DNS resolved for %s:%d",
-			CONFIG_APP_MQTT_SERVER_HOSTNAME,
-			CONFIG_APP_MQTT_SERVER_PORT);
+			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME,
+			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT);
 
 			assert(haddr->ai_addr->sa_family == AF_INET6);
 
@@ -434,8 +435,8 @@ static int get_mqtt_broker_addrinfo(void)
 		}
 
 		LOG_WRN("DNS not resolved for %s:%d (%d), retrying",
-			CONFIG_APP_MQTT_SERVER_HOSTNAME,
-			CONFIG_APP_MQTT_SERVER_PORT,
+			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME,
+			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT,
 			rc);
 
 		k_sleep(K_MSEC(200));

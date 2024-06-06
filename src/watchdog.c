@@ -13,7 +13,7 @@ static int watchdog_new_channel(const struct device *wdt)
 
 	struct wdt_timeout_cfg wdt_config = {
 		.window.min = 0,
-		.window.max = CONFIG_APP_WATCHDOG_TIMEOUT_SEC * MSEC_PER_SEC,
+		.window.max = CONFIG_MY_MODULE_BASE_WATCHDOG_TIMEOUT_SEC * MSEC_PER_SEC,
 		.callback = NULL,
 		.flags = WDT_FLAG_RESET_SOC,
 	};

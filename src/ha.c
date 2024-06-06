@@ -1,6 +1,6 @@
 // MQTT device data
 // -----------------------------------------------------------------------------
-// ~ = CONFIG_APP_DEV_TYPE_* / device_id_hex_string (MQTT_BASE_PATH_FORMAT_STRING)
+// ~ = CONFIG_*_DEV_TYPE_* / device_id_hex_string (MQTT_BASE_PATH_FORMAT_STRING)
 // availability_topic = ~/available
 // state_topic = ~ / <sensor|binary_sensor|trigger> / sensor->unique_id /state
 
@@ -24,16 +24,16 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #define JSON_CONFIG_BUFFER_SIZE		1024
 #define UNIQUE_ID_BUFFER_SIZE		64
 
-#if defined(CONFIG_APP_DEV_TYPE_AIR_QUALITY)
+#if defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY)
 #define MQTT_BASE_PATH_FORMAT_STRING "air_quality/%s"
-#elif defined(CONFIG_APP_DEV_TYPE_ACTION_BUTTON)
+#elif defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_ACTION_BUTTON)
 #define MQTT_BASE_PATH_FORMAT_STRING "action_button/%s"
 #else
 #error "No device type defined"
 #endif
 
 #define LAST_WILL_TOPIC_FORMAT_STRING MQTT_BASE_PATH_FORMAT_STRING "/available"
-#if defined(CONFIG_APP_USE_TEST_DISCOVERY_TOPIC)
+#if defined(CONFIG_MY_MODULE_BASE_HA_USE_TEST_DISCOVERY_TOPIC)
 #define DISCOVERY_TOPIC_FORMAT_STRING		"test/%s/%s/config"
 #define DISCOVERY_TOPIC_TRIGGER_FORMAT_STRING	"test/%s/%s/%s_%s/config"
 #else
@@ -43,7 +43,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 
 #define DEVICE_CONFIG {						\
 	.identifiers = device_id_hex_string,				\
-	.name = CONFIG_APP_DEVICE_NAME " - " CONFIG_APP_DEVICE_NICKNAME,	\
+	.name = CONFIG_MY_MODULE_BASE_HA_DEVICE_NAME " - " CONFIG_MY_MODULE_BASE_HA_DEVICE_NICKNAME,	\
 	.sw_version = APP_VERSION_FULL,					\
 	.hw_version = "rev1",						\
 	.model = "Gold",						\

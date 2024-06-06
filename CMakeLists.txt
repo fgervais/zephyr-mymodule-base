@@ -9,7 +9,7 @@ zephyr_library_sources_ifdef(CONFIG_MY_MODULE_BASE_UID          src/uid.c)
 zephyr_library_sources_ifdef(CONFIG_MY_MODULE_BASE_WATCHDOG     src/watchdog.c)
 
 if (CONFIG_MY_MODULE_BASE_WATCHDOG)
-    list(APPEND EXTRA_CONF_FILE "config/watchdog.conf")
+    list(APPEND EXTRA_CONF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/watchdog.conf")
 endif()
 
 if (CONFIG_MY_MODULE_BASE_HOME_ASSISTANT)

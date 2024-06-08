@@ -1,12 +1,9 @@
 config MY_MODULE_BASE_RESET
 	bool "Reset support"
-	help
-	  .
 
 config MY_MODULE_BASE_UID
 	bool "Unique ID support"
-	help
-	  .
+	select HWINFO
 
 rsource "Kconfig.watchdog"
 rsource "Kconfig.home_assistant"

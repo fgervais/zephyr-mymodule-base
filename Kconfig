@@ -8,7 +8,7 @@ config MY_MODULE_BASE_UID
 	help
 	  .
 
-source "Kconfig.watchdog"
+rsource "Kconfig.watchdog"
 
 menuconfig MY_MODULE_BASE_HOME_ASSISTANT
      bool "Home Assistant support"

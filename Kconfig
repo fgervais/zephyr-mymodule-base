@@ -8,18 +8,7 @@ config MY_MODULE_BASE_UID
 	help
 	  .
 
-menuconfig MY_MODULE_BASE_WATCHDOG
-	bool "Watchdog support"
-
-if MY_MODULE_BASE_WATCHDOG
-
-config MY_MODULE_BASE_WATCHDOG_TIMEOUT_SEC
-	int "Watchdog timeout (sec)"
-	default 180
-	help
-	  Watchdog timeout in seconds.
-
-endif # MY_MODULE_BASE_WATCHDOG
+source "Kconfig.watchdog"
 
 menuconfig MY_MODULE_BASE_HOME_ASSISTANT
      bool "Home Assistant support"

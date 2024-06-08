@@ -1,0 +1,13 @@
+menuconfig MY_MODULE_BASE_WATCHDOG
+	bool "Watchdog support"
+	select WATCHDOG
+
+if MY_MODULE_BASE_WATCHDOG
+
+config MY_MODULE_BASE_WATCHDOG_TIMEOUT_SEC
+	int "Watchdog timeout (sec)"
+	default 180
+	help
+	  Watchdog timeout in seconds.
+
+endif # MY_MODULE_BASE_WATCHDOG

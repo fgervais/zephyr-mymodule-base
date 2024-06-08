@@ -1,9 +1,19 @@
 menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	bool "Home Assistant support"
+
 	select JSON_LIBRARY
 	select NEWLIB_LIBC_FLOAT_PRINTF
+	select DNS_RESOLVER
+
 
 if MY_MODULE_BASE_HOME_ASSISTANT
+
+# DNS default overrides
+config DNS_RESOLVER_ADDITIONAL_BUF_CTR
+	default 5
+
+config DNS_RESOLVER_ADDITIONAL_QUERIES
+	default 2
 
 config MY_MODULE_BASE_HA_DEVICE_NAME
 	string "Device name"

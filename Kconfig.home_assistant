@@ -6,6 +6,15 @@ menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	select DNS_RESOLVER
 	select MQTT_LIB
 
+	select FPU
+	select OPENTHREAD_CSL_RECEIVER
+	select OPENTHREAD_SLAAC
+	select OPENTHREAD_MTD
+	select OPENTHREAD_MTD_SED
+	select NETWORKING
+	select NET_L2_OPENTHREAD
+	select NET_TCP
+	select NET_LOG
 
 if MY_MODULE_BASE_HOME_ASSISTANT
 
@@ -16,8 +25,23 @@ config DNS_RESOLVER_ADDITIONAL_BUF_CTR
 config DNS_RESOLVER_ADDITIONAL_QUERIES
 	default 2
 
+# MQTT default overrides
 config MQTT_KEEPALIVE
 	default 600
+
+# OPENTHREAD default overrides
+config SYSTEM_WORKQUEUE_STACK_SIZE
+	default 2048
+
+config NET_TCP_ISN_RFC6528
+	default n
+
+config OPENTHREAD_POLL_PERIOD
+	default 716000
+
+config NET_BUF_TX_COUNT
+	default 64
+
 
 config MY_MODULE_BASE_HA_DEVICE_NAME
 	string "Device name"

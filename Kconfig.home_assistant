@@ -1,0 +1,64 @@
+menuconfig MY_MODULE_BASE_HOME_ASSISTANT
+	bool "Home Assistant support"
+	select JSON_LIBRARY
+	select NEWLIB_LIBC_FLOAT_PRINTF
+
+if MY_MODULE_BASE_HOME_ASSISTANT
+
+config MY_MODULE_BASE_HA_DEVICE_NAME
+	string "Device name"
+
+config MY_MODULE_BASE_HA_DEVICE_NICKNAME
+	string "Device nickname"
+
+choice MY_MODULE_BASE_HA_DEVICE_TYPE
+	bool "Device type"
+	default MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
+
+config MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
+	bool "Air Quality device"
+
+config MY_MODULE_BASE_HA_DEV_TYPE_ACTION_BUTTON
+	bool "Button device"
+endchoice
+
+config MY_MODULE_BASE_HA_USE_TEST_DISCOVERY_TOPIC
+	bool "Use the test discovery topic"
+	help
+	  Use the test discovery topic.
+
+config MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME
+	string "MQTT server hostname"
+	help
+	  Hostname of MQTT server.
+
+config MY_MODULE_BASE_HA_MQTT_SERVER_ADDR
+	string "MQTT server address"
+	help
+	  MQTT server address.
+
+config MY_MODULE_BASE_HA_MQTT_SERVER_PORT
+	int "MQTT server port number"
+	default 1883
+	help
+	  MQTT server port number.
+
+config MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE
+	int "MQTT RX/TX buffer size"
+	default 1024
+	help
+	  MQTT RX/TX buffer size.
+
+config MY_MODULE_BASE_HA_MQTT_RECEIVE_THREAD_STACK_SIZE
+	int "MQTT receive thread stack size"
+	default 2048
+	help
+	  MQTT receive thread stack size.
+
+config MY_MODULE_BASE_HA_OT_LATENCY_THREAD_STACK_SIZE
+	int "OpenThread latency thread stack size"
+	default 2048
+	help
+	  OpenThread latency thread stack size.
+
+endif # MY_MODULE_BASE_HOME_ASSISTANT

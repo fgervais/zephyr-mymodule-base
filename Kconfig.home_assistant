@@ -27,14 +27,18 @@ config MQTT_KEEPALIVE
 	default 600
 
 # OPENTHREAD default overrides
+choice OPENTHREAD_DEVICE_TYPE
+	default OPENTHREAD_MTD
+endchoice
+
+config OPENTHREAD_POLL_PERIOD
+	default 716000
+
 config SYSTEM_WORKQUEUE_STACK_SIZE
 	default 2048
 
 config NET_TCP_ISN_RFC6528
 	default n
-
-config OPENTHREAD_POLL_PERIOD
-	default 716000
 
 config NET_BUF_TX_COUNT
 	default 64

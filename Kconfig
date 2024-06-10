@@ -1,5 +1,6 @@
 config MY_MODULE_BASE_RESET
 	bool "Reset support"
+	select HWINFO
 
 config MY_MODULE_BASE_UID
 	bool "Unique ID support"

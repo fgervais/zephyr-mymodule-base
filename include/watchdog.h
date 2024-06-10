@@ -1,7 +1,7 @@
 #ifndef WATCHDOG_H_
 #define WATCHDOG_H_
 
-int init_watchdog(const struct device *wdt,
-		  int *main_channel_id, int *mqtt_channel_id);
+int watchdog_new_channel(const struct device *wdt, int *channel_id);
+int watchdog_start(const struct device *wdt);
 
 #endif /* WATCHDOG_H_ */

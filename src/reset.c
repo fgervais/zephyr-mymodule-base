@@ -105,6 +105,24 @@ int clear_reset_cause(void)
 	return 0;
 }
 
+int show_and_clear_reset_cause(void)
+{
+	int ret;
+	uint32_t cause;
+
+	cause = show_reset_cause();
+	if (cause < 0) {
+		return cause;
+	}
+
+	ret = clear_reset_cause();
+	if (ret < 0) {
+		return ret;
+	}
+
+	return cause;
+}
+
 bool is_reset_cause_watchdog(uint32_t cause)
 {
 	return cause & RESET_WATCHDOG;
@@ -118,4 +136,9 @@ bool is_reset_cause_button(uint32_t cause)
 bool is_reset_cause_software(uint32_t cause)
 {
 	return cause & RESET_SOFTWARE;
+}
+
+bool is_reset_cause_lpcomp(uint32_t cause)
+{
+	return cause & RESET_LOW_POWER_WAKE;
 }

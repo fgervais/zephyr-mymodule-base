@@ -48,9 +48,6 @@ config NET_BUF_TX_COUNT
 config MY_MODULE_BASE_HA_DEVICE_NAME
 	string "Device name"
 
-config MY_MODULE_BASE_HA_DEVICE_NICKNAME
-	string "Device nickname"
-
 choice MY_MODULE_BASE_HA_DEVICE_TYPE
 	bool "Device type"
 	default MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY

@@ -43,7 +43,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 
 #define DEVICE_CONFIG {						\
 	.identifiers = device_id_hex_string,				\
-	.name = CONFIG_MY_MODULE_BASE_HA_DEVICE_NAME " - " CONFIG_MY_MODULE_BASE_HA_DEVICE_NICKNAME,	\
+	.name = CONFIG_MY_MODULE_BASE_HA_DEVICE_NAME,	\
 	.sw_version = APP_VERSION_FULL,					\
 	.hw_version = "rev1",						\
 	.model = "Gold",						\

@@ -1,7 +1,7 @@
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/random/random.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);

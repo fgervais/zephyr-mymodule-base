@@ -4,6 +4,7 @@ menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	select JSON_LIBRARY
 	select NEWLIB_LIBC_FLOAT_PRINTF
 	select DNS_RESOLVER
+	select POSIX_API
 	select MQTT_LIB
 
 	select FPU

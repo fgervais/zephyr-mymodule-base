@@ -8,10 +8,11 @@
 // -----------------------------------------------------------------------------
 // homeassistant / <sensor|binary_sensor|trigger> / conf->unique_id /config
 
+#include <zephyr/data/json.h>
+#include <zephyr/kernel.h>
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
-
-#include <zephyr/data/json.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -444,4 +445,56 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 	}
 
 	return 0;
+}
+
+void ha_register_trigger_retry(struct ha_trigger *trigger, int retry_delay_sec)
+{
+	int ret;
+
+retry:
+	ret = ha_register_trigger(trigger);
+	if (ret < 0) {
+		LOG_WRN("Could not register trigger, retrying");
+		k_sleep(K_SECONDS(retry_delay_sec));
+		goto retry;
+	}
+}
+
+void ha_register_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+{
+	int ret;
+
+retry:
+	ret = ha_register_sensor(sensor);
+	if (ret < 0) {
+		LOG_WRN("Could not register sensor, retrying");
+		k_sleep(K_SECONDS(retry_delay_sec));
+		goto retry;
+	}
+}
+
+void ha_send_binary_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+{
+	int ret;
+
+retry:
+	ret = ha_send_binary_sensor_state(sensor);
+	if (ret < 0) {
+		LOG_WRN("Could not send binary sensor, retrying");
+		k_sleep(K_SECONDS(retry_delay_sec));
+		goto retry;
+	}
+}
+
+void ha_set_online_retry(int retry_delay_sec)
+{
+	int ret;
+
+retry:
+	ret = ha_set_online();
+	if (ret < 0) {
+		LOG_WRN("Could not set online, retrying");
+		k_sleep(K_SECONDS(retry_delay_sec));
+		goto retry;
+	}
 }

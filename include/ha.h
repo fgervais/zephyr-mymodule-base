@@ -54,4 +54,9 @@ int ha_send_binary_sensor_state(struct ha_sensor *);
 int ha_register_trigger(struct ha_trigger *);
 int ha_send_trigger_event(struct ha_trigger *);
 
+void ha_register_trigger_retry(struct ha_trigger *, int retry_delay_sec);
+void ha_register_sensor_retry(struct ha_sensor *, int retry_delay_sec);
+void ha_send_binary_sensor_retry(struct ha_sensor *, int retry_delay_sec);
+void ha_set_online_retry(int retry_delay_sec);
+
 #endif /* HA_H_ */

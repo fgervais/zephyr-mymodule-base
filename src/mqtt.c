@@ -352,7 +352,7 @@ static int try_to_connect(struct mqtt_client *client)
 		openthread_request_low_latency("mqtt_connect");
 
 		rc = mqtt_connect(client);
-		if (rc) {
+		if (rc < 0) {
 			openthread_request_normal_latency("mqtt_connect error");
 			LOG_ERR("mqtt_connect failed %d", rc);
 			continue;

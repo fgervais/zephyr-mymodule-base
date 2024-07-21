@@ -6,8 +6,8 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
-#include "mqtt.h"
-#include "openthread.h"
+#include "mymodule/base/mqtt.h"
+#include "mymodule/base/openthread.h"
 
 
 #define MQTT_EVENT_CONNECTED		BIT(0)

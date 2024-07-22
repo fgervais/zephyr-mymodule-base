@@ -5,10 +5,11 @@
 
 #define HA_TOPIC_BUFFER_SIZE		128
 
-#define HA_SENSOR_TYPE				"sensor"
+#define HA_SENSOR_TYPE			"sensor"
 #define HA_BINARY_SENSOR_TYPE		"binary_sensor"
 
-#define HA_RETRY_FOREVER			-1
+#define HA_RETRY_FOREVER		BIT(0)
+#define HA_RETRY_EXP_BACKOFF		BIT(1)
 
 struct ha_sensor {
 	// Set by user
@@ -56,9 +57,16 @@ int ha_send_binary_sensor_state(struct ha_sensor *);
 int ha_register_trigger(struct ha_trigger *);
 int ha_send_trigger_event(struct ha_trigger *);
 
-void ha_register_trigger_retry(struct ha_trigger *, int max_retries, int retry_delay_sec);
-void ha_register_sensor_retry(struct ha_sensor *, int max_retries, int retry_delay_sec);
-void ha_send_binary_sensor_retry(struct ha_sensor *, int max_retries, int retry_delay_sec);
-void ha_set_online_retry(int max_retries, int retry_delay_sec);
+void ha_register_trigger_retry(struct ha_trigger *,
+			       int max_retries, int retry_delay_sec,
+			       uint32_t flags);
+void ha_register_sensor_retry(struct ha_sensor *,
+			      int max_retries, int retry_delay_sec,
+			      uint32_t flags);
+void ha_send_binary_sensor_retry(struct ha_sensor *,
+			         int max_retries, int retry_delay_sec,
+			         uint32_t flags);
+void ha_set_online_retry(int max_retries, int retry_delay_sec,
+			 uint32_t flags);
 
 #endif /* HA_H_ */

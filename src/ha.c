@@ -450,68 +450,92 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 }
 
 void ha_register_trigger_retry(struct ha_trigger *trigger,
-			       int max_retries, int retry_delay_sec)
+			       int max_retries, int retry_delay_sec,
+			       uint32_t flags)
 {
 	int ret;
 	int retries;
 
 	for (retries = 0;
-	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     flags & HA_RETRY_FOREVER || retries < max_retries;
 	     retries++) {
 		ret = ha_register_trigger(trigger);
 		if (ret < 0) {
 			LOG_WRN("Could not register trigger");
-			k_sleep(K_SECONDS(retry_delay_sec));
+			if (flags & HA_RETRY_EXP_BACKOFF) {
+				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+			}
+			else {
+				k_sleep(K_SECONDS(retry_delay_sec));
+			}
 		}
 	}
 }
 
 void ha_register_sensor_retry(struct ha_sensor *sensor,
-			      int max_retries, int retry_delay_sec)
+			      int max_retries, int retry_delay_sec,
+			      uint32_t flags)
 {
 	int ret;
 	int retries;
 
 	for (retries = 0;
-	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     flags & HA_RETRY_FOREVER || retries < max_retries;
 	     retries++) {
 		ret = ha_register_sensor(sensor);
 		if (ret < 0) {
 			LOG_WRN("Could not register sensor");
-			k_sleep(K_SECONDS(retry_delay_sec));
+			if (flags & HA_RETRY_EXP_BACKOFF) {
+				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+			}
+			else {
+				k_sleep(K_SECONDS(retry_delay_sec));
+			}
 		}
 	}
 }
 
 void ha_send_binary_sensor_retry(struct ha_sensor *sensor,
-				 int max_retries, int retry_delay_sec)
+				 int max_retries, int retry_delay_sec,
+				 uint32_t flags)
 {
 	int ret;
 	int retries;
 
 	for (retries = 0;
-	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     flags & HA_RETRY_FOREVER || retries < max_retries;
 	     retries++) {
 		ret = ha_send_binary_sensor_state(sensor);
 		if (ret < 0) {
 			LOG_WRN("Could not send binary sensor");
-			k_sleep(K_SECONDS(retry_delay_sec));
+			if (flags & HA_RETRY_EXP_BACKOFF) {
+				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+			}
+			else {
+				k_sleep(K_SECONDS(retry_delay_sec));
+			}
 		}
 	}
 }
 
-void ha_set_online_retry(int max_retries, int retry_delay_sec)
+void ha_set_online_retry(int max_retries, int retry_delay_sec,
+			 uint32_t flags)
 {
 	int ret;
 	int retries;
 
 	for (retries = 0;
-	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     flags & HA_RETRY_FOREVER || retries < max_retries;
 	     retries++) {
 		ret = ha_set_online();
 		if (ret < 0) {
 			LOG_WRN("Could not set online");
-			k_sleep(K_SECONDS(retry_delay_sec));
+			if (flags & HA_RETRY_EXP_BACKOFF) {
+				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+			}
+			else {
+				k_sleep(K_SECONDS(retry_delay_sec));
+			}
 		}
 	}
 }

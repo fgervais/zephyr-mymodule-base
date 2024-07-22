@@ -449,54 +449,69 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 	return 0;
 }
 
-void ha_register_trigger_retry(struct ha_trigger *trigger, int retry_delay_sec)
+void ha_register_trigger_retry(struct ha_trigger *trigger,
+			       int max_retries, int retry_delay_sec)
 {
 	int ret;
+	int retries;
 
-retry:
-	ret = ha_register_trigger(trigger);
-	if (ret < 0) {
-		LOG_WRN("Could not register trigger, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
-		goto retry;
+	for (retries = 0;
+	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     retries++) {
+		ret = ha_register_trigger(trigger);
+		if (ret < 0) {
+			LOG_WRN("Could not register trigger");
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
 	}
 }
 
-void ha_register_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+void ha_register_sensor_retry(struct ha_sensor *sensor,
+			      int max_retries, int retry_delay_sec)
 {
 	int ret;
+	int retries;
 
-retry:
-	ret = ha_register_sensor(sensor);
-	if (ret < 0) {
-		LOG_WRN("Could not register sensor, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
-		goto retry;
+	for (retries = 0;
+	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     retries++) {
+		ret = ha_register_sensor(sensor);
+		if (ret < 0) {
+			LOG_WRN("Could not register sensor");
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
 	}
 }
 
-void ha_send_binary_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+void ha_send_binary_sensor_retry(struct ha_sensor *sensor,
+				 int max_retries, int retry_delay_sec)
 {
 	int ret;
+	int retries;
 
-retry:
-	ret = ha_send_binary_sensor_state(sensor);
-	if (ret < 0) {
-		LOG_WRN("Could not send binary sensor, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
-		goto retry;
+	for (retries = 0;
+	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     retries++) {
+		ret = ha_send_binary_sensor_state(sensor);
+		if (ret < 0) {
+			LOG_WRN("Could not send binary sensor");
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
 	}
 }
 
-void ha_set_online_retry(int retry_delay_sec)
+void ha_set_online_retry(int max_retries, int retry_delay_sec)
 {
 	int ret;
+	int retries;
 
-retry:
-	ret = ha_set_online();
-	if (ret < 0) {
-		LOG_WRN("Could not set online, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
-		goto retry;
+	for (retries = 0;
+	     max_retries == HA_RETRY_FOREVER || retries < max_retries;
+	     retries++) {
+		ret = ha_set_online();
+		if (ret < 0) {
+			LOG_WRN("Could not set online");
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
 	}
 }

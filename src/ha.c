@@ -306,6 +306,12 @@ int ha_register_sensor(struct ha_sensor *sensor)
 
 	LOG_INF("📝 registering sensor: %s", sensor->unique_id);
 
+	ret = mqtt_transfer_init(&sensor->mqtt_transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not register mqtt transfer");
+		return ret;
+	}
+
 	ret = snprintf(brief_state_topic, sizeof(brief_state_topic),
 		       "~/%s/%s/state",
 		       sensor->type, sensor->unique_id);
@@ -414,6 +420,12 @@ int ha_register_trigger(struct ha_trigger *trigger)
 	};
 
 	LOG_INF("📝 registering trigger: %s", trigger->type);
+
+	ret = mqtt_transfer_init(&trigger->mqtt_transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not register mqtt transfer");
+		return ret;
+	}
 
 	ret = snprintf(trigger->mqtt_transfer.topic,
 		       sizeof(trigger->mqtt_transfer.topic),

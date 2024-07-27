@@ -1,9 +1,8 @@
 #ifndef HA_H_
 #define HA_H_
 
+#include <mymodule/base/mqtt.h>
 #include <mymodule/base/uid.h>
-
-#define HA_TOPIC_BUFFER_SIZE		128
 
 #define HA_SENSOR_TYPE			"sensor"
 #define HA_BINARY_SENSOR_TYPE		"binary_sensor"
@@ -27,7 +26,7 @@ struct ha_sensor {
 	int number_of_values;
 	bool binary_state;
 
-	char full_state_topic[HA_TOPIC_BUFFER_SIZE];
+	struct mqtt_transfer mqtt_transfer;
 };
 
 struct ha_trigger {
@@ -35,7 +34,7 @@ struct ha_trigger {
 	const char *type;
 	const char *subtype;
 
-	char full_topic[HA_TOPIC_BUFFER_SIZE];
+	struct mqtt_transfer mqtt_transfer;
 };
 
 int ha_start(const char *device_id, bool inhibit_discovery);

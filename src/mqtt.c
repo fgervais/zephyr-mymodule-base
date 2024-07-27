@@ -541,6 +541,13 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 	return 0;
 }
 
+int mqtt_transfer_init(struct mqtt_transfer *transfer)
+{
+	k_event_init(&transfer->message_received); 	
+
+	return 0;
+}
+
 int mqtt_init(const char *dev_id,
 	      const char *last_will_topic_string,
 	      const char *last_will_message_string)

@@ -87,9 +87,9 @@ struct ha_trigger_config {
 
 
 static const char *device_id_hex_string;
-static char mqtt_base_path[HA_TOPIC_BUFFER_SIZE];
+static char mqtt_base_path[MQTT_TOPIC_MAX_SIZE];
 
-static char last_will_topic[HA_TOPIC_BUFFER_SIZE];
+static char last_will_topic[MQTT_TOPIC_MAX_SIZE];
 static const char *last_will_message = "offline";
 
 static bool inhibit_discovery_mode;
@@ -148,7 +148,7 @@ static int ha_send_sensor_discovery(const char *sensor_type,
 {
 	int ret;
 	char json_config[JSON_CONFIG_BUFFER_SIZE];
-	char discovery_topic[HA_TOPIC_BUFFER_SIZE];
+	char discovery_topic[MQTT_TOPIC_MAX_SIZE];
 
 	snprintf(discovery_topic, sizeof(discovery_topic),
 		 DISCOVERY_TOPIC_FORMAT_STRING,
@@ -191,7 +191,7 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 {
 	int ret;
 	char json_config[JSON_CONFIG_BUFFER_SIZE];
-	char discovery_topic[HA_TOPIC_BUFFER_SIZE];
+	char discovery_topic[MQTT_TOPIC_MAX_SIZE];
 
 	snprintf(discovery_topic, sizeof(discovery_topic),
 		 DISCOVERY_TOPIC_TRIGGER_FORMAT_STRING,
@@ -289,7 +289,7 @@ int ha_set_online()
 int ha_register_sensor(struct ha_sensor *sensor)
 {
 	int ret;
-	char brief_state_topic[HA_TOPIC_BUFFER_SIZE];
+	char brief_state_topic[MQTT_TOPIC_MAX_SIZE];
 	struct ha_sensor_config ha_sensor_config = {
 		.base_path = mqtt_base_path,
 		.name = sensor->name,
@@ -314,12 +314,13 @@ int ha_register_sensor(struct ha_sensor *sensor)
 		return -ENOMEM;
 	}
 
-	ret = snprintf(sensor->full_state_topic, sizeof(sensor->full_state_topic),
-		 "%s%s",
-		 mqtt_base_path,
-		 brief_state_topic + 1);
+	ret = snprintf(sensor->mqtt_transfer.topic,
+		       sizeof(sensor->mqtt_transfer.topic),
+		       "%s%s",
+		       mqtt_base_path,
+		       brief_state_topic + 1);
 	if (ret < 0 && ret >= sizeof(brief_state_topic)) {
-		LOG_ERR("Could not set full_state_topic");
+		LOG_ERR("Could not set mqtt transfer topic");
 		return -ENOMEM;
 	}
 
@@ -372,7 +373,7 @@ int ha_send_sensor_value(struct ha_sensor *sensor)
 		return -ENOMEM;
 	}
 
-	ret = mqtt_publish_to_topic(sensor->full_state_topic,
+	ret = mqtt_publish_to_topic(sensor->mqtt_transfer.topic,
 		value_string, sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
@@ -390,7 +391,7 @@ int ha_send_binary_sensor_state(struct ha_sensor *sensor)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(sensor->full_state_topic,
+	ret = mqtt_publish_to_topic(sensor->mqtt_transfer.topic,
 		sensor->binary_state ? "ON" : "OFF", sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
@@ -406,7 +407,7 @@ int ha_register_trigger(struct ha_trigger *trigger)
 	struct ha_trigger_config ha_trigger_config = {
 		.automation_type = "trigger",
 		.payload = "PRESS",
-		.topic = trigger->full_topic,
+		.topic = trigger->mqtt_transfer.topic,
 		.type = trigger->type,
 		.subtype = trigger->subtype,
 		.dev = DEVICE_CONFIG,
@@ -414,12 +415,13 @@ int ha_register_trigger(struct ha_trigger *trigger)
 
 	LOG_INF("📝 registering trigger: %s", trigger->type);
 
-	ret = snprintf(trigger->full_topic, sizeof(trigger->full_topic),
-		 "%s/%s/%s_%s/action",
-		 mqtt_base_path,
-		 "trigger", trigger->type, trigger->subtype);
-	if (ret < 0 && ret >= sizeof(trigger->full_topic)) {
-		LOG_ERR("Could not set full_topic");
+	ret = snprintf(trigger->mqtt_transfer.topic,
+		       sizeof(trigger->mqtt_transfer.topic),
+		       "%s/%s/%s_%s/action",
+		       mqtt_base_path,
+		       "trigger", trigger->type, trigger->subtype);
+	if (ret < 0 && ret >= sizeof(trigger->mqtt_transfer.topic)) {
+		LOG_ERR("Could not set mqtt transfer topic");
 		return -ENOMEM;
 	}
 
@@ -439,7 +441,7 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(trigger->full_topic,
+	ret = mqtt_publish_to_topic(trigger->mqtt_transfer.topic,
 		"PRESS", false);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");

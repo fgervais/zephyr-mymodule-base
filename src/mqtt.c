@@ -161,6 +161,106 @@ static void wait_for_mqtt_connected(void)
 	k_event_wait(&mqtt_events, MQTT_EVENT_CONNECTED, false, K_FOREVER);
 }
 
+static int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
+{
+	int ret;
+	struct mqtt_transfer *transfer, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
+		if (sys_timepoint_expired(transfer->timeout)) {
+			sys_slist_remove(list, prev, &transfer->node);
+		}
+		else {
+			prev = &transfer->node;
+		}
+	}
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int append_transfer(sys_slist_t *list, struct k_mutex *lock,
+			   struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = remove_expired_transfers(list, lock);
+	if (ret < 0) {
+		LOG_ERR("Could not remove expired transfers");
+		return ret;
+	}
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	sys_slist_append(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
+			   struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	sys_slist_find_and_remove(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
+				 uint32_t message_id)
+{
+	int ret;
+	struct mqtt_transfer *transfer, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
+		if (transfer->message_id == message_id) {
+			LOG_INF("Notifying transfer that message was received");
+			k_event_post(&transfer->event,
+				     MQTT_MESSAGE_RECEIVED_EVENT);
+			sys_slist_remove(list, prev, &transfer->node);
+			goto out;
+		}
+		else {
+			prev = &transfer->node;
+		}
+	}
+
+out:
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
 static void mqtt_event_handler(struct mqtt_client *const client,
 		      const struct mqtt_evt *evt)
 {
@@ -212,6 +312,8 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		}
 
 		LOG_INF("PUBACK packet id: %u", evt->param.puback.message_id);
+		notify_acked_transfer(&publish_list, &publish_list_lock,
+				      evt->param.puback.message_id);
 		break;
 
 	case MQTT_EVT_PUBLISH:
@@ -473,74 +575,6 @@ static int connect_to_server(void)
 	return 0;
 }
 
-int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
-{
-	int ret;
-	struct mqtt_transfer *transfer, *next;
-	sys_snode_t *prev = NULL;
-
-	ret = k_mutex_lock(lock, K_SECONDS(1));
-	if (ret < 0) {
-		LOG_ERR("Could not aquire list lock");
-		return ret;
-	}
-
-	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
-		if (sys_timepoint_expired(transfer->timeout)) {
-			sys_slist_remove(list, prev, &transfer->node);
-		}
-		else {
-			prev = &transfer->node;
-		}
-	}
-
-	k_mutex_unlock(lock);
-
-	return 0;
-}
-
-int append_transfer(sys_slist_t *list, struct k_mutex *lock,
-		     struct mqtt_transfer *transfer)
-{
-	int ret;
-
-	ret = remove_expired_transfers(list, lock);
-	if (ret < 0) {
-		LOG_ERR("Could not remove expired transfers");
-		return ret;
-	}
-
-	ret = k_mutex_lock(lock, K_SECONDS(1));
-	if (ret < 0) {
-		LOG_ERR("Could not aquire list lock");
-		return ret;
-	}
-
-	sys_slist_append(list, &transfer->node);
-
-	k_mutex_unlock(lock);
-
-	return 0;
-}
-
-int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
-		     struct mqtt_transfer *transfer)
-{
-	int ret;
-
-	ret = k_mutex_lock(lock, K_SECONDS(1));
-	if (ret < 0) {
-		LOG_ERR("Could not aquire list lock");
-		return ret;
-	}
-
-	sys_slist_find_and_remove(list, &transfer->node);
-
-	k_mutex_unlock(lock);
-
-	return 0;
-}
-
 int mqtt_watchdog_init(const struct device *watchdog, int channel_id)
 {
 	wdt = watchdog;
@@ -644,7 +678,7 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 
 int mqtt_transfer_init(struct mqtt_transfer *transfer)
 {
-	k_event_init(&transfer->message_received);
+	k_event_init(&transfer->event);
 
 	return 0;
 }

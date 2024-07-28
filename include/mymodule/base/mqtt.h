@@ -6,7 +6,8 @@
 #include <zephyr/net/net_ip.h>
 
 
-#define MQTT_TOPIC_MAX_SIZE	128
+#define MQTT_TOPIC_MAX_SIZE		128
+#define MQTT_MESSAGE_RECEIVED_EVENT	BIT(0)
 
 
 struct mqtt_subscription {
@@ -18,7 +19,7 @@ struct mqtt_transfer {
 	sys_snode_t node;
 	char topic[MQTT_TOPIC_MAX_SIZE];
 	uint32_t message_id;
-	struct k_event message_received;
+	struct k_event event;
 	k_timepoint_t timeout;
 };
 

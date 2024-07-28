@@ -173,11 +173,15 @@ static int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
 		return ret;
 	}
 
+	LOG_INF("📋 pending transfer list:");
+
 	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
 		if (sys_timepoint_expired(transfer->timeout)) {
+			LOG_INF("└── %08x (expired)", transfer->message_id);
 			sys_slist_remove(list, prev, &transfer->node);
 		}
 		else {
+			LOG_INF("└── %08x", transfer->message_id);
 			prev = &transfer->node;
 		}
 	}
@@ -204,6 +208,8 @@ static int append_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
+	LOG_INF("queuing transfer %08x", transfer->message_id);
+
 	sys_slist_append(list, &transfer->node);
 
 	k_mutex_unlock(lock);
@@ -221,6 +227,8 @@ static int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
 		LOG_ERR("Could not aquire list lock");
 		return ret;
 	}
+
+	LOG_INF("trying to remove transfer %08x", transfer->message_id);
 
 	sys_slist_find_and_remove(list, &transfer->node);
 
@@ -242,9 +250,11 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
+	LOG_INF("🐦 message received, trying to find transfer");
+
 	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
 		if (transfer->message_id == message_id) {
-			LOG_INF("Notifying transfer that message was received");
+			LOG_INF("└── transfer found, notifying");
 			k_event_post(&transfer->event,
 				     MQTT_MESSAGE_RECEIVED_EVENT);
 			sys_slist_remove(list, prev, &transfer->node);
@@ -254,6 +264,10 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 			prev = &transfer->node;
 		}
 	}
+
+	// This is fine, maybe the transfer was not queued in the first place
+	// or if it was, the process waiting for contirmation can retransmit
+	LOG_WRN("└── ⚠️ transfer not found");
 
 out:
 	k_mutex_unlock(lock);

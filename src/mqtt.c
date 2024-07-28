@@ -523,6 +523,24 @@ int append_transfer(sys_slist_t *list, struct k_mutex *lock,
 	return 0;
 }
 
+int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
+		     struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	sys_slist_find_and_remove(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
 int mqtt_watchdog_init(const struct device *watchdog, int channel_id)
 {
 	wdt = watchdog;
@@ -531,7 +549,8 @@ int mqtt_watchdog_init(const struct device *watchdog, int channel_id)
 	return 0;
 }
 
-int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
+int mqtt_publish_to_topic(const char *topic, char *payload, bool retain,
+			  uint32_t *message_id)
 {
 	int ret;
 	struct mqtt_publish_param param;
@@ -565,6 +584,10 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
 		return ret;
 	}
 
+	if (message_id != NULL) {
+		*message_id = param.message_id;
+	}
+
 	return 0;
 }
 
@@ -581,9 +604,11 @@ int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
 		return ret;
 	}
 
-	ret = mqtt_publish_to_topic(transfer->topic, payload, retain);
+	ret = mqtt_publish_to_topic(transfer->topic, payload, retain,
+				    &transfer->message_id);
 	if (ret < 0) {
 		LOG_ERR("Could not publish to topic");
+		remove_transfer(&publish_list, &publish_list_lock, transfer);
 		return ret;
 	}
 

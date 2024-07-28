@@ -17,11 +17,13 @@ struct mqtt_subscription {
 struct mqtt_transfer {
 	sys_snode_t node;
 	char topic[MQTT_TOPIC_MAX_SIZE];
+	uint32_t message_id;
 	struct k_event message_received;
 	k_timepoint_t timeout;
 };
 
-int mqtt_publish_to_topic(const char *topic, char *payload, bool retain);
+int mqtt_publish_to_topic(const char *topic, char *payload, bool retain,
+			  uint32_t *message_id);
 int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
 				   char *payload, bool retain);
 int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,

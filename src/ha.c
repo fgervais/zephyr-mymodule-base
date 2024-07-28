@@ -178,7 +178,7 @@ static int ha_send_sensor_discovery(const char *sensor_type,
 
 	LOG_DBG("payload: %s", json_config);
 
-	ret = mqtt_publish_to_topic(discovery_topic, json_config, true);
+	ret = mqtt_publish_to_topic(discovery_topic, json_config, true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -210,7 +210,7 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 
 	LOG_DBG("payload: %s", json_config);
 
-	ret = mqtt_publish_to_topic(discovery_topic, json_config, true);
+	ret = mqtt_publish_to_topic(discovery_topic, json_config, true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -253,7 +253,7 @@ int ha_set_online()
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(last_will_topic, "online", true);
+	ret = mqtt_publish_to_topic(last_will_topic, "online", true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;

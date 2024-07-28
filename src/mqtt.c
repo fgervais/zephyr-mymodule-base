@@ -12,6 +12,8 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 #define MQTT_EVENT_CONNECTED		BIT(0)
 
+#define TRANSFER_TIMEOUT_SEC		10
+
 
 static uint8_t rx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
 static uint8_t tx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
@@ -44,6 +46,8 @@ static int wdt_channel_id;
 
 static K_EVENT_DEFINE(mqtt_events);
 
+static K_MUTEX_DEFINE(publish_list_lock);
+static sys_slist_t publish_list = SYS_SLIST_STATIC_INIT(&publish_list);
 
 static int connect_to_server(void);
 static void keepalive(struct k_work *work);
@@ -469,6 +473,56 @@ static int connect_to_server(void)
 	return 0;
 }
 
+int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
+{
+	int ret;
+	struct mqtt_transfer *transfer, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
+		if (sys_timepoint_expired(transfer->timeout)) {
+			sys_slist_remove(list, prev, &transfer->node);
+		}
+		else {
+			prev = &transfer->node;
+		}
+	}
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+int append_transfer(sys_slist_t *list, struct k_mutex *lock,
+		     struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = remove_expired_transfers(list, lock);
+	if (ret < 0) {
+		LOG_ERR("Could not remove expired transfers");
+		return ret;
+	}
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	sys_slist_append(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
 int mqtt_watchdog_init(const struct device *watchdog, int channel_id)
 {
 	wdt = watchdog;
@@ -514,6 +568,28 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
 	return 0;
 }
 
+int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
+				   char *payload, bool retain)
+{
+	int ret;
+
+	transfer->timeout = sys_timepoint_calc(K_SECONDS(TRANSFER_TIMEOUT_SEC));
+
+	ret = append_transfer(&publish_list, &publish_list_lock, transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not append transfer");
+		return ret;
+	}
+
+	ret = mqtt_publish_to_topic(transfer->topic, payload, retain);
+	if (ret < 0) {
+		LOG_ERR("Could not publish to topic");
+		return ret;
+	}
+
+	return 0;
+}
+
 int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 			    size_t nb_of_subs)
 {
@@ -543,7 +619,7 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 
 int mqtt_transfer_init(struct mqtt_transfer *transfer)
 {
-	k_event_init(&transfer->message_received); 	
+	k_event_init(&transfer->message_received);
 
 	return 0;
 }

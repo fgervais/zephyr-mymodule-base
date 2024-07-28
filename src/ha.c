@@ -379,8 +379,8 @@ int ha_send_sensor_value(struct ha_sensor *sensor)
 		return -ENOMEM;
 	}
 
-	ret = mqtt_publish_to_topic(sensor->mqtt_transfer.topic,
-		value_string, sensor->retain);
+	ret = mqtt_publish_to_topic_transfer(&sensor->mqtt_transfer,
+					     value_string, sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -397,7 +397,7 @@ int ha_send_binary_sensor_state(struct ha_sensor *sensor)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(sensor->mqtt_transfer.topic,
+	ret = mqtt_publish_to_topic_transfer(&sensor->mqtt_transfer,
 		sensor->binary_state ? "ON" : "OFF", sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
@@ -453,8 +453,8 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(trigger->mqtt_transfer.topic,
-		"PRESS", false);
+	ret = mqtt_publish_to_topic_transfer(&trigger->mqtt_transfer,
+					     "PRESS", false);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;

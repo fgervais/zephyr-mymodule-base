@@ -12,8 +12,6 @@ LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
 #define MQTT_EVENT_CONNECTED		BIT(0)
 
-#define TRANSFER_TIMEOUT_SEC		10
-
 
 static uint8_t rx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
 static uint8_t tx_buffer[CONFIG_MY_MODULE_BASE_HA_MQTT_BUFFER_SIZE];
@@ -644,7 +642,8 @@ int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
 {
 	int ret;
 
-	transfer->timeout = sys_timepoint_calc(K_SECONDS(TRANSFER_TIMEOUT_SEC));
+	transfer->timeout = sys_timepoint_calc(
+		K_SECONDS(MQTT_TRANSFER_TIMEOUT_SEC));
 
 	ret = append_transfer(&publish_list, &publish_list_lock, transfer);
 	if (ret < 0) {

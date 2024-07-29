@@ -9,6 +9,7 @@
 
 #define HA_RETRY_FOREVER		BIT(0)
 #define HA_RETRY_EXP_BACKOFF		BIT(1)
+#define HA_RETRY_WAIT_PUBACK		BIT(2)
 
 struct ha_sensor {
 	// Set by user

@@ -514,43 +514,46 @@ void ha_send_binary_sensor_retry(struct ha_sensor *sensor,
 				 uint32_t flags)
 {
 	int ret;
-	int retries;
+	int retries = 0;
 	uint32_t events;
 
-	for (retries = 0;
-	     flags & HA_RETRY_FOREVER || retries < max_retries;
-	     retries++) {
-		if (retries > 0) {
-			LOG_DBG("retrying");
-			if (flags & HA_RETRY_EXP_BACKOFF) {
-				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
-			}
-			else {
-				k_sleep(K_SECONDS(retry_delay_sec));
-			}
+retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_DBG("retrying");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
 		}
-
-		ret = ha_send_binary_sensor_state(sensor);
-		if (ret < 0) {
-			LOG_WRN("Could not send binary sensor");
-			continue;
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
 		}
+	}
 
-		if (flags & HA_RETRY_WAIT_PUBACK) {
-			events = k_event_wait(&sensor->mqtt_transfer.event,
-					      MQTT_MESSAGE_RECEIVED_EVENT,
-					      true,
-					      K_SECONDS(3));
+	if (retries < INT32_MAX) {
+		retries++;
+	}
 
-			LOG_INF("⏰ events: %08x", events);
+	ret = ha_send_binary_sensor_state(sensor);
+	if (ret < 0) {
+		LOG_WRN("Could not send binary sensor");
+		goto retry;
+	}
 
-			if (events == 0) {
-				LOG_WRN("Did not receive PUBACK");
-				continue;
-			}
+	if (flags & HA_RETRY_WAIT_PUBACK) {
+		events = k_event_wait(&sensor->mqtt_transfer.event,
+				      MQTT_MESSAGE_RECEIVED_EVENT,
+				      true,
+				      K_SECONDS(MQTT_TRANSFER_TIMEOUT_SEC));
+
+		LOG_INF("⏰ events: %08x", events);
+
+		if (!(events & MQTT_MESSAGE_RECEIVED_EVENT)) {
+			LOG_WRN("Did not receive PUBACK");
+			goto retry;
 		}
-
-		break;
 	}
 }
 

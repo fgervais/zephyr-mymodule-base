@@ -252,7 +252,7 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 
 	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
 		if (transfer->message_id == message_id) {
-			LOG_INF("└── transfer found, notifying");
+			LOG_INF("   └── ✅  transfer found, notifying");
 			k_event_post(&transfer->event,
 				     MQTT_MESSAGE_RECEIVED_EVENT);
 			sys_slist_remove(list, prev, &transfer->node);
@@ -265,7 +265,7 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 
 	// This is fine, maybe the transfer was not queued in the first place
 	// or if it was, the process waiting for confirmation can retransmit
-	LOG_WRN("└── ⚠️  transfer not found");
+	LOG_INF("   └── ⚠️  transfer not found");
 
 out:
 	k_mutex_unlock(lock);

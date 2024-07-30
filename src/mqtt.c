@@ -264,8 +264,8 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 	}
 
 	// This is fine, maybe the transfer was not queued in the first place
-	// or if it was, the process waiting for contirmation can retransmit
-	LOG_WRN("└── ⚠️ transfer not found");
+	// or if it was, the process waiting for confirmation can retransmit
+	LOG_WRN("└── ⚠️  transfer not found");
 
 out:
 	k_mutex_unlock(lock);

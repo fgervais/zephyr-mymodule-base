@@ -39,8 +39,8 @@ static struct zsock_addrinfo hints;
 static struct zsock_addrinfo *haddr;
 #endif
 
-static const struct device *wdt;
-static int wdt_channel_id;
+static const struct device *wdt = NULL;
+static int wdt_channel_id = -1;
 
 static K_EVENT_DEFINE(mqtt_events);
 
@@ -367,8 +367,10 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		openthread_request_normal_latency("MQTT_EVT_PINGRESP");
 
 		LOG_INF("PINGRESP");
-		LOG_INF("└── 🦴 feed watchdog");
-		wdt_feed(wdt, wdt_channel_id);
+		if (wdt != NULL) {
+			LOG_INF("└── 🦴 feed watchdog");
+			wdt_feed(wdt, wdt_channel_id);
+		}
 		break;
 
 	default:

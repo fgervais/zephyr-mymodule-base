@@ -219,7 +219,8 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 	return 0;
 }
 
-int ha_start(const char *device_id, bool inhibit_discovery)
+int ha_start(const char *device_id, bool inhibit_discovery,
+	     bool enable_last_will)
 {
 	int ret;
 
@@ -233,11 +234,13 @@ int ha_start(const char *device_id, bool inhibit_discovery)
 		return -ENOMEM;
 	}
 
-	ret = snprintf(last_will_topic, sizeof(last_will_topic),
-		 LAST_WILL_TOPIC_FORMAT_STRING, device_id_hex_string);
-	if (ret < 0 && ret >= sizeof(last_will_topic)) {
-		LOG_ERR("Could not set last_will_topic");
-		return -ENOMEM;
+	if (enable_last_will) {
+		ret = snprintf(last_will_topic, sizeof(last_will_topic),
+			 LAST_WILL_TOPIC_FORMAT_STRING, device_id_hex_string);
+		if (ret < 0 && ret >= sizeof(last_will_topic)) {
+			LOG_ERR("Could not set last_will_topic");
+			return -ENOMEM;
+		}
 	}
 
 	ret = mqtt_init(device_id_hex_string, last_will_topic, last_will_message);

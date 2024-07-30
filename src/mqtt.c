@@ -132,9 +132,11 @@ static void client_init(struct mqtt_client *client)
 
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
 
-	client->will_topic = &last_will_topic;
-	client->will_message = &last_will_message;
-	client->will_retain = 1;
+	if (last_will_topic.topic.size > 0) {
+		client->will_topic = &last_will_topic;
+		client->will_message = &last_will_message;
+		client->will_retain = 1;
+	}
 }
 
 static bool is_mqtt_connected(void)

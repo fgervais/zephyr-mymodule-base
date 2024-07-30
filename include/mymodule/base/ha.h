@@ -39,7 +39,8 @@ struct ha_trigger {
 	struct mqtt_transfer mqtt_transfer;
 };
 
-int ha_start(const char *device_id, bool inhibit_discovery);
+int ha_start(const char *device_id, bool inhibit_discovery,
+	     bool enable_last_will);
 int ha_set_online();
 
 int ha_init_sensor(struct ha_sensor *);

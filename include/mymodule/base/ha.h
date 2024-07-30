@@ -7,6 +7,7 @@
 #define HA_SENSOR_TYPE			"sensor"
 #define HA_BINARY_SENSOR_TYPE		"binary_sensor"
 
+#define HA_RETRY_NO_FLAGS		0
 #define HA_RETRY_FOREVER		BIT(0)
 #define HA_RETRY_EXP_BACKOFF		BIT(1)
 #define HA_RETRY_WAIT_PUBACK		BIT(2)

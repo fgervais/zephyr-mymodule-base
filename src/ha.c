@@ -468,21 +468,32 @@ void ha_register_trigger_retry(struct ha_trigger *trigger,
 			       uint32_t flags)
 {
 	int ret;
-	int retries;
+	int retries = 0;
 
-	for (retries = 0;
-	     flags & HA_RETRY_FOREVER || retries < max_retries;
-	     retries++) {
-		ret = ha_register_trigger(trigger);
-		if (ret < 0) {
-			LOG_WRN("Could not register trigger");
-			if (flags & HA_RETRY_EXP_BACKOFF) {
-				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
-			}
-			else {
-				k_sleep(K_SECONDS(retry_delay_sec));
-			}
+retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exhausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
 		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
+	ret = ha_register_trigger(trigger);
+	if (ret < 0) {
+		LOG_WRN("Could not register trigger");
+		goto retry;
 	}
 }
 
@@ -491,21 +502,32 @@ void ha_register_sensor_retry(struct ha_sensor *sensor,
 			      uint32_t flags)
 {
 	int ret;
-	int retries;
+	int retries = 0;
 
-	for (retries = 0;
-	     flags & HA_RETRY_FOREVER || retries < max_retries;
-	     retries++) {
-		ret = ha_register_sensor(sensor);
-		if (ret < 0) {
-			LOG_WRN("Could not register sensor");
-			if (flags & HA_RETRY_EXP_BACKOFF) {
-				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
-			}
-			else {
-				k_sleep(K_SECONDS(retry_delay_sec));
-			}
+retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
 		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
+	ret = ha_register_sensor(sensor);
+	if (ret < 0) {
+		LOG_WRN("Could not register sensor");
+		goto retry;
 	}
 }
 
@@ -519,11 +541,12 @@ void ha_send_binary_sensor_retry(struct ha_sensor *sensor,
 
 retry:
 	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
 		return;
 	}
 
 	if (retries > 0) {
-		LOG_DBG("retrying");
+		LOG_INF("🔁 will retry in a moment");
 		if (flags & HA_RETRY_EXP_BACKOFF) {
 			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
 		}
@@ -561,20 +584,31 @@ void ha_set_online_retry(int max_retries, int retry_delay_sec,
 			 uint32_t flags)
 {
 	int ret;
-	int retries;
+	int retries = 0;
 
-	for (retries = 0;
-	     flags & HA_RETRY_FOREVER || retries < max_retries;
-	     retries++) {
-		ret = ha_set_online();
-		if (ret < 0) {
-			LOG_WRN("Could not set online");
-			if (flags & HA_RETRY_EXP_BACKOFF) {
-				k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
-			}
-			else {
-				k_sleep(K_SECONDS(retry_delay_sec));
-			}
+retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
 		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
+	ret = ha_set_online();
+	if (ret < 0) {
+		LOG_WRN("Could not set online");
+		goto retry;
 	}
 }

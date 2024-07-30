@@ -206,7 +206,7 @@ static int append_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
-	LOG_INF("queuing transfer %08x", transfer->message_id);
+	LOG_INF("queuing transfer 0x%08x", transfer->message_id);
 
 	sys_slist_append(list, &transfer->node);
 
@@ -226,7 +226,7 @@ static int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
-	LOG_INF("trying to remove transfer %08x", transfer->message_id);
+	LOG_INF("trying to remove transfer 0x%08x", transfer->message_id);
 
 	sys_slist_find_and_remove(list, &transfer->node);
 
@@ -323,7 +323,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		LOG_INF("PUBACK packet id: %u", evt->param.puback.message_id);
+		LOG_INF("PUBACK packet id: 0x%08x", evt->param.puback.message_id);
 		notify_acked_transfer(&publish_list, &publish_list_lock,
 				      evt->param.puback.message_id);
 		break;

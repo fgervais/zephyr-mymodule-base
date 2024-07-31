@@ -708,12 +708,14 @@ int mqtt_init(const char *dev_id,
 
 	device_id = dev_id;
 
-	last_will_topic.topic.utf8 = last_will_topic_string;
-	last_will_topic.topic.size = strlen(last_will_topic_string);
-	last_will_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
+	if (last_will_topic_string != NULL) {
+		last_will_topic.topic.utf8 = last_will_topic_string;
+		last_will_topic.topic.size = strlen(last_will_topic_string);
+		last_will_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 
-	last_will_message.utf8 = last_will_message_string;
-	last_will_message.size = strlen(last_will_message_string);
+		last_will_message.utf8 = last_will_message_string;
+		last_will_message.size = strlen(last_will_message_string);
+	}
 
 	if (!is_mqtt_connected()) {
 		ret = connect_to_server();

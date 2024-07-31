@@ -1,11 +1,12 @@
 menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	bool "Home Assistant support"
 
-	select JSON_LIBRARY
-	select NEWLIB_LIBC_FLOAT_PRINTF
 	select DNS_RESOLVER
-	select POSIX_API
+	select EVENTS
+	select JSON_LIBRARY
 	select MQTT_LIB
+	select NEWLIB_LIBC_FLOAT_PRINTF
+	select POSIX_API
 
 	select FPU
 	select OPENTHREAD_SLAAC
@@ -57,6 +58,9 @@ config MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
 
 config MY_MODULE_BASE_HA_DEV_TYPE_ACTION_BUTTON
 	bool "Button device"
+
+config MY_MODULE_BASE_HA_DEV_TYPE_LEAK_DETECTOR
+	bool "Leak detector"
 endchoice
 
 config MY_MODULE_BASE_HA_USE_TEST_DISCOVERY_TOPIC

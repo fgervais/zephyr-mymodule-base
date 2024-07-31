@@ -6,8 +6,8 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
 
-#include "mqtt.h"
-#include "openthread.h"
+#include "mymodule/base/mqtt.h"
+#include "mymodule/base/openthread.h"
 
 
 #define MQTT_EVENT_CONNECTED		BIT(0)
@@ -39,11 +39,13 @@ static struct zsock_addrinfo hints;
 static struct zsock_addrinfo *haddr;
 #endif
 
-static const struct device *wdt;
-static int wdt_channel_id;
+static const struct device *wdt = NULL;
+static int wdt_channel_id = -1;
 
 static K_EVENT_DEFINE(mqtt_events);
 
+static K_MUTEX_DEFINE(publish_list_lock);
+static sys_slist_t publish_list = SYS_SLIST_STATIC_INIT(&publish_list);
 
 static int connect_to_server(void);
 static void keepalive(struct k_work *work);
@@ -130,9 +132,11 @@ static void client_init(struct mqtt_client *client)
 
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
 
-	client->will_topic = &last_will_topic;
-	client->will_message = &last_will_message;
-	client->will_retain = 1;
+	if (last_will_topic.topic.size > 0) {
+		client->will_topic = &last_will_topic;
+		client->will_message = &last_will_message;
+		client->will_retain = 1;
+	}
 }
 
 static bool is_mqtt_connected(void)
@@ -155,6 +159,120 @@ static void mqtt_disconnected(void)
 static void wait_for_mqtt_connected(void)
 {
 	k_event_wait(&mqtt_events, MQTT_EVENT_CONNECTED, false, K_FOREVER);
+}
+
+static int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
+{
+	int ret;
+	struct mqtt_transfer *transfer, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	LOG_INF("📋 pending transfer list:");
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
+		if (sys_timepoint_expired(transfer->timeout)) {
+			LOG_INF("└── %08x (expired)", transfer->message_id);
+			sys_slist_remove(list, prev, &transfer->node);
+		}
+		else {
+			LOG_INF("└── %08x", transfer->message_id);
+			prev = &transfer->node;
+		}
+	}
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int append_transfer(sys_slist_t *list, struct k_mutex *lock,
+			   struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = remove_expired_transfers(list, lock);
+	if (ret < 0) {
+		LOG_ERR("Could not remove expired transfers");
+		return ret;
+	}
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	LOG_INF("queuing transfer 0x%08x", transfer->message_id);
+
+	sys_slist_append(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
+			   struct mqtt_transfer *transfer)
+{
+	int ret;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	LOG_INF("trying to remove transfer 0x%08x", transfer->message_id);
+
+	sys_slist_find_and_remove(list, &transfer->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
+				 uint32_t message_id)
+{
+	int ret;
+	struct mqtt_transfer *transfer, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	LOG_INF("🐦 message received, trying to find transfer");
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
+		if (transfer->message_id == message_id) {
+			LOG_INF("   └── ✅  transfer found, notifying");
+			k_event_post(&transfer->event,
+				     MQTT_MESSAGE_RECEIVED_EVENT);
+			sys_slist_remove(list, prev, &transfer->node);
+			goto out;
+		}
+		else {
+			prev = &transfer->node;
+		}
+	}
+
+	// This is fine, maybe the transfer was not queued in the first place
+	// or if it was, the process waiting for confirmation can retransmit
+	LOG_INF("   └── ⚠️  transfer not found");
+
+out:
+	k_mutex_unlock(lock);
+
+	return 0;
 }
 
 static void mqtt_event_handler(struct mqtt_client *const client,
@@ -207,7 +325,9 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		LOG_INF("PUBACK packet id: %u", evt->param.puback.message_id);
+		LOG_INF("PUBACK packet id: 0x%08x", evt->param.puback.message_id);
+		notify_acked_transfer(&publish_list, &publish_list_lock,
+				      evt->param.puback.message_id);
 		break;
 
 	case MQTT_EVT_PUBLISH:
@@ -249,8 +369,10 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 		openthread_request_normal_latency("MQTT_EVT_PINGRESP");
 
 		LOG_INF("PINGRESP");
-		LOG_INF("└── 🦴 feed watchdog");
-		wdt_feed(wdt, wdt_channel_id);
+		if (wdt != NULL) {
+			LOG_INF("└── 🦴 feed watchdog");
+			wdt_feed(wdt, wdt_channel_id);
+		}
 		break;
 
 	default:
@@ -477,7 +599,8 @@ int mqtt_watchdog_init(const struct device *watchdog, int channel_id)
 	return 0;
 }
 
-int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
+int mqtt_publish_to_topic(const char *topic, char *payload, bool retain,
+			  uint32_t *message_id)
 {
 	int ret;
 	struct mqtt_publish_param param;
@@ -511,6 +634,35 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain)
 		return ret;
 	}
 
+	if (message_id != NULL) {
+		*message_id = param.message_id;
+	}
+
+	return 0;
+}
+
+int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
+				   char *payload, bool retain)
+{
+	int ret;
+
+	transfer->timeout = sys_timepoint_calc(
+		K_SECONDS(MQTT_TRANSFER_TIMEOUT_SEC));
+
+	ret = append_transfer(&publish_list, &publish_list_lock, transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not append transfer");
+		return ret;
+	}
+
+	ret = mqtt_publish_to_topic(transfer->topic, payload, retain,
+				    &transfer->message_id);
+	if (ret < 0) {
+		LOG_ERR("Could not publish to topic");
+		remove_transfer(&publish_list, &publish_list_lock, transfer);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -541,6 +693,13 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 	return 0;
 }
 
+int mqtt_transfer_init(struct mqtt_transfer *transfer)
+{
+	k_event_init(&transfer->event);
+
+	return 0;
+}
+
 int mqtt_init(const char *dev_id,
 	      const char *last_will_topic_string,
 	      const char *last_will_message_string)
@@ -549,12 +708,14 @@ int mqtt_init(const char *dev_id,
 
 	device_id = dev_id;
 
-	last_will_topic.topic.utf8 = last_will_topic_string;
-	last_will_topic.topic.size = strlen(last_will_topic_string);
-	last_will_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
+	if (last_will_topic_string != NULL) {
+		last_will_topic.topic.utf8 = last_will_topic_string;
+		last_will_topic.topic.size = strlen(last_will_topic_string);
+		last_will_topic.qos = MQTT_QOS_0_AT_MOST_ONCE;
 
-	last_will_message.utf8 = last_will_message_string;
-	last_will_message.size = strlen(last_will_message_string);
+		last_will_message.utf8 = last_will_message_string;
+		last_will_message.size = strlen(last_will_message_string);
+	}
 
 	if (!is_mqtt_connected()) {
 		ret = connect_to_server();

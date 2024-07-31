@@ -4,7 +4,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(uid, LOG_LEVEL_DBG);
 
-#include "uid.h"
+#include "mymodule/base/uid.h"
 
 
 #define DEVICE_ID_BYTE_SIZE	8

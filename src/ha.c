@@ -18,8 +18,8 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #include <stdlib.h>
 #include <app_version.h>
 
-#include "ha.h"
-#include "mqtt.h"
+#include "mymodule/base/ha.h"
+#include "mymodule/base/mqtt.h"
 
 
 #define JSON_CONFIG_BUFFER_SIZE		1024
@@ -29,6 +29,8 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #define MQTT_BASE_PATH_FORMAT_STRING "air_quality/%s"
 #elif defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_ACTION_BUTTON)
 #define MQTT_BASE_PATH_FORMAT_STRING "action_button/%s"
+#elif defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_LEAK_DETECTOR)
+#define MQTT_BASE_PATH_FORMAT_STRING "leak_detector/%s"
 #else
 #error "No device type defined"
 #endif
@@ -85,9 +87,9 @@ struct ha_trigger_config {
 
 
 static const char *device_id_hex_string;
-static char mqtt_base_path[HA_TOPIC_BUFFER_SIZE];
+static char mqtt_base_path[MQTT_TOPIC_MAX_SIZE];
 
-static char last_will_topic[HA_TOPIC_BUFFER_SIZE];
+static char last_will_topic[MQTT_TOPIC_MAX_SIZE];
 static const char *last_will_message = "offline";
 
 static bool inhibit_discovery_mode;
@@ -146,7 +148,7 @@ static int ha_send_sensor_discovery(const char *sensor_type,
 {
 	int ret;
 	char json_config[JSON_CONFIG_BUFFER_SIZE];
-	char discovery_topic[HA_TOPIC_BUFFER_SIZE];
+	char discovery_topic[MQTT_TOPIC_MAX_SIZE];
 
 	snprintf(discovery_topic, sizeof(discovery_topic),
 		 DISCOVERY_TOPIC_FORMAT_STRING,
@@ -176,7 +178,7 @@ static int ha_send_sensor_discovery(const char *sensor_type,
 
 	LOG_DBG("payload: %s", json_config);
 
-	ret = mqtt_publish_to_topic(discovery_topic, json_config, true);
+	ret = mqtt_publish_to_topic(discovery_topic, json_config, true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -189,7 +191,7 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 {
 	int ret;
 	char json_config[JSON_CONFIG_BUFFER_SIZE];
-	char discovery_topic[HA_TOPIC_BUFFER_SIZE];
+	char discovery_topic[MQTT_TOPIC_MAX_SIZE];
 
 	snprintf(discovery_topic, sizeof(discovery_topic),
 		 DISCOVERY_TOPIC_TRIGGER_FORMAT_STRING,
@@ -208,7 +210,7 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 
 	LOG_DBG("payload: %s", json_config);
 
-	ret = mqtt_publish_to_topic(discovery_topic, json_config, true);
+	ret = mqtt_publish_to_topic(discovery_topic, json_config, true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -217,7 +219,8 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 	return 0;
 }
 
-int ha_start(const char *device_id, bool inhibit_discovery)
+int ha_start(const char *device_id, bool inhibit_discovery,
+	     bool enable_last_will)
 {
 	int ret;
 
@@ -238,7 +241,13 @@ int ha_start(const char *device_id, bool inhibit_discovery)
 		return -ENOMEM;
 	}
 
-	ret = mqtt_init(device_id_hex_string, last_will_topic, last_will_message);
+	if (enable_last_will) {
+		ret = mqtt_init(device_id_hex_string,
+				last_will_topic, last_will_message);
+	}
+	else {
+		ret = mqtt_init(device_id_hex_string, NULL, NULL);
+	}
 	if (ret < 0) {
 		LOG_ERR("could initialize MQTT");
 		return ret;
@@ -251,7 +260,7 @@ int ha_set_online()
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(last_will_topic, "online", true);
+	ret = mqtt_publish_to_topic(last_will_topic, "online", true, NULL);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -287,7 +296,7 @@ int ha_set_online()
 int ha_register_sensor(struct ha_sensor *sensor)
 {
 	int ret;
-	char brief_state_topic[HA_TOPIC_BUFFER_SIZE];
+	char brief_state_topic[MQTT_TOPIC_MAX_SIZE];
 	struct ha_sensor_config ha_sensor_config = {
 		.base_path = mqtt_base_path,
 		.name = sensor->name,
@@ -304,6 +313,12 @@ int ha_register_sensor(struct ha_sensor *sensor)
 
 	LOG_INF("📝 registering sensor: %s", sensor->unique_id);
 
+	ret = mqtt_transfer_init(&sensor->mqtt_transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not register mqtt transfer");
+		return ret;
+	}
+
 	ret = snprintf(brief_state_topic, sizeof(brief_state_topic),
 		       "~/%s/%s/state",
 		       sensor->type, sensor->unique_id);
@@ -312,12 +327,13 @@ int ha_register_sensor(struct ha_sensor *sensor)
 		return -ENOMEM;
 	}
 
-	ret = snprintf(sensor->full_state_topic, sizeof(sensor->full_state_topic),
-		 "%s%s",
-		 mqtt_base_path,
-		 brief_state_topic + 1);
+	ret = snprintf(sensor->mqtt_transfer.topic,
+		       sizeof(sensor->mqtt_transfer.topic),
+		       "%s%s",
+		       mqtt_base_path,
+		       brief_state_topic + 1);
 	if (ret < 0 && ret >= sizeof(brief_state_topic)) {
-		LOG_ERR("Could not set full_state_topic");
+		LOG_ERR("Could not set mqtt transfer topic");
 		return -ENOMEM;
 	}
 
@@ -370,8 +386,8 @@ int ha_send_sensor_value(struct ha_sensor *sensor)
 		return -ENOMEM;
 	}
 
-	ret = mqtt_publish_to_topic(sensor->full_state_topic,
-		value_string, sensor->retain);
+	ret = mqtt_publish_to_topic_transfer(&sensor->mqtt_transfer,
+					     value_string, sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -388,7 +404,7 @@ int ha_send_binary_sensor_state(struct ha_sensor *sensor)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(sensor->full_state_topic,
+	ret = mqtt_publish_to_topic_transfer(&sensor->mqtt_transfer,
 		sensor->binary_state ? "ON" : "OFF", sensor->retain);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
@@ -404,7 +420,7 @@ int ha_register_trigger(struct ha_trigger *trigger)
 	struct ha_trigger_config ha_trigger_config = {
 		.automation_type = "trigger",
 		.payload = "PRESS",
-		.topic = trigger->full_topic,
+		.topic = trigger->mqtt_transfer.topic,
 		.type = trigger->type,
 		.subtype = trigger->subtype,
 		.dev = DEVICE_CONFIG,
@@ -412,12 +428,19 @@ int ha_register_trigger(struct ha_trigger *trigger)
 
 	LOG_INF("📝 registering trigger: %s", trigger->type);
 
-	ret = snprintf(trigger->full_topic, sizeof(trigger->full_topic),
-		 "%s/%s/%s_%s/action",
-		 mqtt_base_path,
-		 "trigger", trigger->type, trigger->subtype);
-	if (ret < 0 && ret >= sizeof(trigger->full_topic)) {
-		LOG_ERR("Could not set full_topic");
+	ret = mqtt_transfer_init(&trigger->mqtt_transfer);
+	if (ret < 0) {
+		LOG_ERR("Could not register mqtt transfer");
+		return ret;
+	}
+
+	ret = snprintf(trigger->mqtt_transfer.topic,
+		       sizeof(trigger->mqtt_transfer.topic),
+		       "%s/%s/%s_%s/action",
+		       mqtt_base_path,
+		       "trigger", trigger->type, trigger->subtype);
+	if (ret < 0 && ret >= sizeof(trigger->mqtt_transfer.topic)) {
+		LOG_ERR("Could not set mqtt transfer topic");
 		return -ENOMEM;
 	}
 
@@ -437,8 +460,8 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 {
 	int ret;
 
-	ret = mqtt_publish_to_topic(trigger->full_topic,
-		"PRESS", false);
+	ret = mqtt_publish_to_topic_transfer(&trigger->mqtt_transfer,
+					     "PRESS", false);
 	if (ret < 0) {
 		LOG_ERR("Count not publish to topic");
 		return ret;
@@ -447,54 +470,152 @@ int ha_send_trigger_event(struct ha_trigger *trigger)
 	return 0;
 }
 
-void ha_register_trigger_retry(struct ha_trigger *trigger, int retry_delay_sec)
+void ha_register_trigger_retry(struct ha_trigger *trigger,
+			       int max_retries, int retry_delay_sec,
+			       uint32_t flags)
 {
 	int ret;
+	int retries = 0;
 
 retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exhausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
 	ret = ha_register_trigger(trigger);
 	if (ret < 0) {
-		LOG_WRN("Could not register trigger, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
+		LOG_WRN("Could not register trigger");
 		goto retry;
 	}
 }
 
-void ha_register_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+void ha_register_sensor_retry(struct ha_sensor *sensor,
+			      int max_retries, int retry_delay_sec,
+			      uint32_t flags)
 {
 	int ret;
+	int retries = 0;
 
 retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
 	ret = ha_register_sensor(sensor);
 	if (ret < 0) {
-		LOG_WRN("Could not register sensor, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
+		LOG_WRN("Could not register sensor");
 		goto retry;
 	}
 }
 
-void ha_send_binary_sensor_retry(struct ha_sensor *sensor, int retry_delay_sec)
+void ha_send_binary_sensor_retry(struct ha_sensor *sensor,
+				 int max_retries, int retry_delay_sec,
+				 uint32_t flags)
 {
 	int ret;
+	int retries = 0;
+	uint32_t events;
 
 retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
 	ret = ha_send_binary_sensor_state(sensor);
 	if (ret < 0) {
-		LOG_WRN("Could not send binary sensor, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
+		LOG_WRN("Could not send binary sensor");
 		goto retry;
+	}
+
+	if (flags & HA_RETRY_WAIT_PUBACK) {
+		events = k_event_wait(&sensor->mqtt_transfer.event,
+				      MQTT_MESSAGE_RECEIVED_EVENT,
+				      true,
+				      K_SECONDS(MQTT_TRANSFER_TIMEOUT_SEC));
+
+		LOG_INF("⏰ events: %08x", events);
+
+		if (!(events & MQTT_MESSAGE_RECEIVED_EVENT)) {
+			LOG_WRN("Did not receive PUBACK");
+			goto retry;
+		}
 	}
 }
 
-void ha_set_online_retry(int retry_delay_sec)
+void ha_set_online_retry(int max_retries, int retry_delay_sec,
+			 uint32_t flags)
 {
 	int ret;
+	int retries = 0;
 
 retry:
+	if (!(flags & HA_RETRY_FOREVER) && retries >= max_retries) {
+		LOG_WRN("exausted retries");
+		return;
+	}
+
+	if (retries > 0) {
+		LOG_INF("🔁 will retry in a moment");
+		if (flags & HA_RETRY_EXP_BACKOFF) {
+			k_sleep(K_SECONDS(retry_delay_sec * 2^retries));
+		}
+		else {
+			k_sleep(K_SECONDS(retry_delay_sec));
+		}
+	}
+
+	if (retries < INT32_MAX) {
+		retries++;
+	}
+
 	ret = ha_set_online();
 	if (ret < 0) {
-		LOG_WRN("Could not set online, retrying");
-		k_sleep(K_SECONDS(retry_delay_sec));
+		LOG_WRN("Could not set online");
 		goto retry;
 	}
 }

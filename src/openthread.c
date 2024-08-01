@@ -294,6 +294,8 @@ int openthread_erase_persistent_info(void)
 	return 0;
 }
 
+// OpenThread attach backoff implementation:
+// https://github.com/openthread/openthread/blob/03113e8502ab6153a5f320f00b6f60685fdfc6ef/src/core/thread/mle.cpp#L648
 int openthread_my_start(void)
 {
 	int ret;

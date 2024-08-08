@@ -164,11 +164,6 @@ static bool is_mtd_in_med_mode(otInstance *instance)
 // 			period_ms * 1000 / OT_US_PER_TEN_SYMBOLS);
 // }
 
-bool openthread_is_ready()
-{
-	return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
-}
-
 static void openthread_set_low_latency()
 {
 	struct openthread_context *ot_context = openthread_get_default_context();
@@ -331,4 +326,9 @@ int openthread_wait_for_ready(void)
 	k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_FOREVER);
 
 	return 0;
+}
+
+bool openthread_is_ready()
+{
+	return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
 }

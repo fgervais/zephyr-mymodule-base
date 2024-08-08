@@ -137,6 +137,8 @@ static void on_thread_state_changed(otChangedFlags flags,
 	}
 
 	if (has_role && has_neighbors && route_available && has_address) {
+		// Something else is not ready, not sure what
+		k_sleep(K_MSEC(100));
 		LOG_INF("🛜  openthread ready!");
 		k_event_post(&events, OPENTHREAD_READY_EVENT);
 	} else {

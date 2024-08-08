@@ -1,7 +1,6 @@
 #ifndef OPENTHREAD_H_
 #define OPENTHREAD_H_
 
-void openthread_enable_ready_flag();
 bool openthread_is_ready();
 
 void openthread_request_low_latency(const char *reason);

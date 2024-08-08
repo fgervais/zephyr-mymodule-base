@@ -150,6 +150,8 @@ static struct openthread_state_changed_cb ot_state_chaged_cb = {
 	.state_changed_cb = on_thread_state_changed
 };
 
+
+#ifdef CONFIG_OPENTHREAD_MTD_SED
 static bool is_mtd_in_med_mode(otInstance *instance)
 {
 	return otThreadGetLinkMode(instance).mRxOnWhenIdle;
@@ -271,9 +273,10 @@ static void receive_latency_management_thread_function(void)
 }
 
 K_THREAD_DEFINE(receive_latency_thread,
-		CONFIG_MY_MODULE_BASE_HA_OT_LATENCY_THREAD_STACK_SIZE,
+		MY_MODULE_BASE_OT_LATENCY_THREAD_STACK_SIZE,
 		receive_latency_management_thread_function, NULL, NULL, NULL,
 		-2, 0, SYS_FOREVER_MS);
+#endif /* CONFIG_OPENTHREAD_MTD_SED */
 
 int openthread_erase_persistent_info(void)
 {
@@ -305,6 +308,7 @@ int openthread_my_start(void)
 		return ret;
 	}
 
+#ifdef CONFIG_OPENTHREAD_MTD_SED
 	k_thread_start(receive_latency_thread);
 
 	openthread_api_mutex_lock(ot_context);
@@ -317,6 +321,7 @@ int openthread_my_start(void)
 		ot_context->instance,
 		(int)(CONFIG_OPENTHREAD_POLL_PERIOD / 1000) + 4);
 	openthread_api_mutex_unlock(ot_context);
+#endif
 
 	return openthread_start(ot_context);
 }

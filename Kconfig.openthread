@@ -1,0 +1,31 @@
+menuconfig MY_MODULE_BASE_OPENTHREAD
+	bool "Openthread management support"
+	select FPU
+	select OPENTHREAD_SLAAC
+	select NETWORKING
+	select NET_L2_OPENTHREAD
+	select NET_LOG
+
+if MY_MODULE_BASE_OPENTHREAD
+
+config MY_MODULE_BASE_OT_LATENCY_THREAD_STACK_SIZE
+	int "OpenThread latency thread stack size"
+	default 2048
+	depends on OPENTHREAD_MTD_SED
+	help
+	  OpenThread latency thread stack size.
+
+config OPENTHREAD_POLL_PERIOD
+	default 716000
+	depends on OPENTHREAD_MTD_SED
+
+config SYSTEM_WORKQUEUE_STACK_SIZE
+	default 2048
+
+config NET_TCP_ISN_RFC6528
+	default n
+
+config NET_BUF_TX_COUNT
+	default 64
+
+endif # MY_MODULE_BASE_OPENTHREAD

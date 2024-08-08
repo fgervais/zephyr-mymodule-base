@@ -1,6 +1,8 @@
 menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	bool "Home Assistant support"
 
+	select MY_MODULE_BASE_OPENTHREAD
+
 	select DNS_RESOLVER
 	select EVENTS
 	select JSON_LIBRARY
@@ -8,12 +10,7 @@ menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	select NEWLIB_LIBC_FLOAT_PRINTF
 	select POSIX_API
 
-	select FPU
-	select OPENTHREAD_SLAAC
-	select NETWORKING
-	select NET_L2_OPENTHREAD
 	select NET_TCP
-	select NET_LOG
 
 if MY_MODULE_BASE_HOME_ASSISTANT
 
@@ -27,23 +24,6 @@ config DNS_RESOLVER_ADDITIONAL_QUERIES
 # MQTT default overrides
 config MQTT_KEEPALIVE
 	default 600
-
-# OPENTHREAD default overrides
-choice OPENTHREAD_DEVICE_TYPE
-	default OPENTHREAD_MTD
-endchoice
-
-config OPENTHREAD_POLL_PERIOD
-	default 716000
-
-config SYSTEM_WORKQUEUE_STACK_SIZE
-	default 2048
-
-config NET_TCP_ISN_RFC6528
-	default n
-
-config NET_BUF_TX_COUNT
-	default 64
 
 
 config MY_MODULE_BASE_HA_DEVICE_NAME

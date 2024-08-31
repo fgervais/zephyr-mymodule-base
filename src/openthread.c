@@ -12,7 +12,13 @@ LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 
 #define LOW_LATENCY_POLL_PERIOD_MS	10
 
-#define OPENTHREAD_READY_EVENT		BIT(0)
+// #define OPENTHREAD_READY_EVENT		BIT(0)
+// #define ULA_ADDR_SET_EVENT		BIT(1)
+#define ROLE_SET_EVENT			BIT(0)
+#define MESH_LOCAL_ADDR_SET_EVENT	BIT(1)
+#define ROUTABLE_PREFIX_SET_EVENT	BIT(2)
+#define ROUTABLE_ADDR_SET_EVENT		BIT(3)
+#define HAS_NEIGHBORS_EVENT		BIT(4)
 
 #define LOW_LATENCY_EVENT_REQ_LOW	BIT(0)
 #define LOW_LATENCY_EVENT_REQ_NORMAL	BIT(1)
@@ -96,13 +102,16 @@ static bool check_routes(otInstance *instance)
         return route_available;
 }
 
+static bool check_role(otInstance *instance)
+{
+
+}
+
 // nrf/subsys/caf/modules/net_state_ot.c
 static void on_thread_state_changed(otChangedFlags flags,
 				    struct openthread_context *ot_context,
 				    void *user_data)
 {
-	static bool has_role;
-
 	bool has_neighbors = check_neighbors(ot_context->instance);
 	bool route_available = check_routes(ot_context->instance);
 	bool has_address = flags & OT_CHANGED_IP6_ADDRESS_ADDED;
@@ -114,36 +123,36 @@ static void on_thread_state_changed(otChangedFlags flags,
 		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_LEADER:
 			LOG_INF("Leader role set");
-			has_role = true;
+			k_event_post(&events, ROLE_SET_EVENT);
 			break;
 
 		case OT_DEVICE_ROLE_CHILD:
 			LOG_INF("Child role set");
-			has_role = true;
+			k_event_post(&events, ROLE_SET_EVENT);
 			break;
 
 		case OT_DEVICE_ROLE_ROUTER:
 			LOG_INF("Router role set");
-			has_role = true;
+			k_event_post(&events, ROLE_SET_EVENT);
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
 			LOG_INF("No role set");
-			has_role = false;
+			k_event_clear(&events, ROLE_SET_EVENT);
 			break;
 		}
 	}
 
-	if (has_role && has_neighbors && route_available && has_address) {
-		// Something else is not ready, not sure what
-		k_sleep(K_MSEC(100));
-		LOG_INF("🛜  openthread ready!");
-		k_event_post(&events, OPENTHREAD_READY_EVENT);
-	} else {
-		k_event_set(&events, 0);
-	}
+	// if (has_role && has_neighbors && route_available && has_address) {
+	// 	// Something else is not ready, not sure what
+	// 	k_sleep(K_MSEC(100));
+	// 	LOG_INF("🛜  openthread ready!");
+	// 	k_event_post(&events, OPENTHREAD_READY_EVENT);
+	// } else {
+	// 	k_event_set(&events, 0);
+	// }
 }
 
 static struct openthread_state_changed_cb ot_state_chaged_cb = {
@@ -328,12 +337,13 @@ int openthread_my_start(void)
 
 int openthread_wait_for_ready(void)
 {
-	k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_FOREVER);
+	// k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_FOREVER);
 
 	return 0;
 }
 
 bool openthread_is_ready()
 {
-	return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
+	// return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
+	return false;
 }

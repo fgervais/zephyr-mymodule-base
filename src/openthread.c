@@ -107,6 +107,14 @@ static bool check_role(otInstance *instance)
 
 }
 
+static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
+			      void *user_data)
+{
+	if (if_addr->is_mesh_local) {
+		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
+	}
+}
+
 // nrf/subsys/caf/modules/net_state_ot.c
 static void on_thread_state_changed(otChangedFlags flags,
 				    struct openthread_context *ot_context,
@@ -118,6 +126,13 @@ static void on_thread_state_changed(otChangedFlags flags,
 
 	LOG_INF("state: 0x%.8x has_neighbours:%s route_available:%s", flags,
 		(has_neighbors)?("yes"):("no"), (route_available)?("yes"):("no"));
+
+	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
+		k_event_clear(&events, MESH_LOCAL_ADDR_SET_EVENT);
+
+		net_if_ipv6_addr_foreach(ot_context->iface,
+					 check_ipv6_addr, NULL);
+	}
 
 	if (flags & OT_CHANGED_THREAD_ROLE) {
 		switch (otThreadGetDeviceRole(ot_context->instance)) {

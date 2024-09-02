@@ -182,7 +182,7 @@ static void on_thread_state_changed(otChangedFlags flags,
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
 			LOG_INF("No role set");
-			k_event_clear(&events, ROLE_SET_EVENT);
+			k_event_set(&events, 0);
 			break;
 		}
 	}

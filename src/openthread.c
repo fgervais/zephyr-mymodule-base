@@ -28,26 +28,26 @@ static K_EVENT_DEFINE(events);
 static K_EVENT_DEFINE(low_latency_events);
 
 
-static void format_address(char *buffer, size_t buffer_size, const uint8_t *addr_m8,
-			   size_t addr_size)
-{
-	if (addr_size == 0) {
-		buffer[0] = 0;
-		return;
-	}
+// static void format_address(char *buffer, size_t buffer_size, const uint8_t *addr_m8,
+// 			   size_t addr_size)
+// {
+// 	if (addr_size == 0) {
+// 		buffer[0] = 0;
+// 		return;
+// 	}
 
-	size_t pos = 0;
+// 	size_t pos = 0;
 
-	for (size_t i = 0; i < addr_size; i++) {
-		int ret = snprintf(&buffer[pos], buffer_size - pos, "%.2x", addr_m8[i]);
+// 	for (size_t i = 0; i < addr_size; i++) {
+// 		int ret = snprintf(&buffer[pos], buffer_size - pos, "%.2x", addr_m8[i]);
 
-		if ((ret > 0) && ((size_t)ret < buffer_size - pos)) {
-			pos += ret;
-		} else {
-			break;
-		}
-	}
-}
+// 		if ((ret > 0) && ((size_t)ret < buffer_size - pos)) {
+// 			pos += ret;
+// 		} else {
+// 			break;
+// 		}
+// 	}
+// }
 
 static bool check_neighbors(otInstance *instance)
 {
@@ -57,10 +57,14 @@ static bool check_neighbors(otInstance *instance)
         bool has_neighbors = false;
 
         while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
-                char addr_str[ARRAY_SIZE(info.mExtAddress.m8) * 2 + 1];
+                // char addr_str[ARRAY_SIZE(info.mExtAddress.m8) * 2 + 1];
+                char addr_str[INET6_ADDRSTRLEN];
 
-                format_address(addr_str, sizeof(addr_str), info.mExtAddress.m8,
-                               ARRAY_SIZE(info.mExtAddress.m8));
+                // format_address(addr_str, sizeof(addr_str), info.mExtAddress.m8,
+                //                ARRAY_SIZE(info.mExtAddress.m8));
+                net_addr_ntop(AF_INET6, &info.mExtAddress,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
                 LOG_INF("Neighbor addr:%s age:%" PRIu32, addr_str, info.mAge);
 
                 has_neighbors = true;
@@ -78,17 +82,22 @@ static bool check_routes(otInstance *instance)
 {
         otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
         otBorderRouterConfig config;
+        char addr_str[INET6_ADDRSTRLEN];
 
         bool route_available = false;
 
         while (otNetDataGetNextOnMeshPrefix(instance, &iterator, &config) == OT_ERROR_NONE) {
-                char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
+                // char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
 
-                format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
-                               ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
+                // format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
+                //                ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
+
+                net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
                 LOG_INF("Route prefix:%s default:%s preferred:%s", addr_str,
-                        (config.mDefaultRoute)?("yes"):("no"),
-                        (config.mPreferred)?("yes"):("no"));
+                        config.mDefaultRoute ? "yes" : "no",
+                        config.mPreferred ? "yes" : "no");
 
                 // route_available = route_available || config.mDefaultRoute;
                 route_available = true;

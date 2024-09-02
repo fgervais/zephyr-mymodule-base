@@ -49,70 +49,65 @@ static K_EVENT_DEFINE(low_latency_events);
 // 	}
 // }
 
-static bool check_neighbors(otInstance *instance)
+static bool has_neighbors(otInstance *instance)
 {
+	char addr_str[INET6_ADDRSTRLEN];
         otNeighborInfoIterator iterator = OT_NEIGHBOR_INFO_ITERATOR_INIT;
         otNeighborInfo info;
-
-        bool has_neighbors = false;
+        bool neighbor_found = false;
 
         while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
-                // char addr_str[ARRAY_SIZE(info.mExtAddress.m8) * 2 + 1];
-                char addr_str[INET6_ADDRSTRLEN];
-
-                // format_address(addr_str, sizeof(addr_str), info.mExtAddress.m8,
-                //                ARRAY_SIZE(info.mExtAddress.m8));
                 net_addr_ntop(AF_INET6, &info.mExtAddress,
 			      addr_str,
 			      ARRAY_SIZE(addr_str));
-                LOG_INF("Neighbor addr:%s age:%" PRIu32, addr_str, info.mAge);
+                LOG_INF("Neighbor addr: %s", addr_str);
+                LOG_INF("└── age: %d", info.mAge);
 
-                has_neighbors = true;
+                neighbor_found = true;
 
                 if (!IS_ENABLED(CONFIG_LOG)) {
-                        /* If logging is disabled, stop when a neighbor is found. */
                         break;
                 }
         }
 
-        return has_neighbors;
+        return neighbor_found;
 }
 
-static bool check_routes(otInstance *instance)
-{
-        otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
-        otBorderRouterConfig config;
-        char addr_str[INET6_ADDRSTRLEN];
+// static bool check_routes(otInstance *instance)
+// {
+//         otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
+//         otBorderRouterConfig config;
+//         char addr_str[INET6_ADDRSTRLEN];
 
-        bool route_available = false;
+//         bool route_available = false;
 
-        while (otNetDataGetNextOnMeshPrefix(instance, &iterator, &config) == OT_ERROR_NONE) {
-                // char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
+//         while (otNetDataGetNextOnMeshPrefix(instance, &iterator, &config) == OT_ERROR_NONE) {
+//                 // char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
 
-                // format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
-                //                ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
+//                 // format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
+//                 //                ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
 
-                net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
-			      addr_str,
-			      ARRAY_SIZE(addr_str));
-                LOG_INF("Route prefix:%s default:%s preferred:%s", addr_str,
-                        config.mDefaultRoute ? "yes" : "no",
-                        config.mPreferred ? "yes" : "no");
+//                 net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
+// 			      addr_str,
+// 			      ARRAY_SIZE(addr_str));
+//                 LOG_INF("Route prefix:%s default:%s preferred:%s", addr_str,
+//                         config.mDefaultRoute ? "yes" : "no",
+//                         config.mPreferred ? "yes" : "no");
 
-                // route_available = route_available || config.mDefaultRoute;
-                route_available = true;
+//                 // route_available = route_available || config.mDefaultRoute;
+//                 route_available = true;
 
-                if (route_available && !IS_ENABLED(CONFIG_LOG)) {
-                        /* If logging is disabled, stop when a route is found. */
-                        break;
-                }
-        }
+//                 if (route_available && !IS_ENABLED(CONFIG_LOG)) {
+//                         /* If logging is disabled, stop when a route is found. */
+//                         break;
+//                 }
+//         }
 
-        return route_available;
-}
+//         return route_available;
+// }
 
 static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
-			      void *user_data)
+			    void *user_data)
 {
         char addr_str[INET6_ADDRSTRLEN];
 	otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
@@ -129,7 +124,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 	}
 
 	if (if_addr->is_mesh_local) {
-		LOG_INF("└──  is_mesh_local: %d", if_addr->is_mesh_local);
+		LOG_INF("└── is_mesh_local: %d", if_addr->is_mesh_local);
 		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
 	}
 
@@ -141,8 +136,8 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 			      ARRAY_SIZE(addr_str));
 
                 LOG_INF("Outside mesh prefix: %s", addr_str);
-                LOG_INF("└──  default: %s", config.mDefaultRoute ? "yes" : "no");
-                LOG_INF("└──  preferred: %s", config.mPreferred ? "yes" : "no");
+                LOG_INF("└── default: %s", config.mDefaultRoute ? "yes" : "no");
+                LOG_INF("└── preferred: %s", config.mPreferred ? "yes" : "no");
 
                 if (net_ipv6_is_prefix((uint8_t *)&config.mPrefix.mPrefix.mFields.m8,
                 		       (uint8_t *)&if_addr->address.in6_addr.s6_addr,
@@ -166,19 +161,6 @@ static void on_thread_state_changed(otChangedFlags flags,
 				    struct openthread_context *ot_context,
 				    void *user_data)
 {
-	bool has_neighbors = check_neighbors(ot_context->instance);
-	bool route_available = check_routes(ot_context->instance);
-
-	LOG_INF("state: 0x%.8x has_neighbours:%s route_available:%s", flags,
-		(has_neighbors)?("yes"):("no"), (route_available)?("yes"):("no"));
-
-	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
-		k_event_clear(&events, MESH_LOCAL_ADDR_SET_EVENT);
-
-		net_if_ipv6_addr_foreach(ot_context->iface,
-					 check_ipv6_addr, ot_context);
-	}
-
 	if (flags & OT_CHANGED_THREAD_ROLE) {
 		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_LEADER:
@@ -203,6 +185,16 @@ static void on_thread_state_changed(otChangedFlags flags,
 			k_event_clear(&events, ROLE_SET_EVENT);
 			break;
 		}
+	}
+
+	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
+		net_if_ipv6_addr_foreach(ot_context->iface,
+					 check_ipv6_addr, ot_context);
+	}
+
+	if (k_event_test(&events, MESH_LOCAL_ADDR_SET_EVENT)
+			&& has_neighbors(ot_context->instance)) {
+		k_event_post(&events, HAS_NEIGHBORS_EVENT);
 	}
 
 	// if (has_role && has_neighbors && route_available && has_address) {

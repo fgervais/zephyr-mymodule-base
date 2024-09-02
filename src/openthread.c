@@ -16,9 +16,9 @@ LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 // #define ULA_ADDR_SET_EVENT		BIT(1)
 #define ROLE_SET_EVENT			BIT(0)
 #define MESH_LOCAL_ADDR_SET_EVENT	BIT(1)
-#define ROUTABLE_PREFIX_SET_EVENT	BIT(2)
-#define ROUTABLE_ADDR_SET_EVENT		BIT(3)
-#define HAS_NEIGHBORS_EVENT		BIT(4)
+// #define ROUTABLE_PREFIX_SET_EVENT	BIT(2)
+#define ROUTABLE_ADDR_SET_EVENT		BIT(2)
+#define HAS_NEIGHBORS_EVENT		BIT(3)
 
 #define LOW_LATENCY_EVENT_REQ_LOW	BIT(0)
 #define LOW_LATENCY_EVENT_REQ_NORMAL	BIT(1)
@@ -111,17 +111,54 @@ static bool check_routes(otInstance *instance)
         return route_available;
 }
 
-static bool check_role(otInstance *instance)
-{
-
-}
-
 static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 			      void *user_data)
 {
+        char addr_str[INET6_ADDRSTRLEN];
+	otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
+        otBorderRouterConfig config;
+        struct openthread_context *ot_context = user_data;
+
+	net_addr_ntop(AF_INET6, &if_addr->address.in6_addr,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
+        LOG_INF("🔍 address: %s", addr_str);
+
+        if (!net_ipv6_is_ula_addr(&if_addr->address.in6_addr)) {
+		return;
+	}
+
 	if (if_addr->is_mesh_local) {
+		LOG_INF("└──  is_mesh_local: %d", if_addr->is_mesh_local);
 		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
 	}
+
+        while (otNetDataGetNextOnMeshPrefix(ot_context->instance,
+        				    &iterator,
+        				    &config) == OT_ERROR_NONE) {
+                net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
+
+                LOG_INF("Outside mesh prefix: %s", addr_str);
+                LOG_INF("└──  default: %s", config.mDefaultRoute ? "yes" : "no");
+                LOG_INF("└──  preferred: %s", config.mPreferred ? "yes" : "no");
+
+                if (net_ipv6_is_prefix((uint8_t *)&config.mPrefix.mPrefix.mFields.m8,
+                		       (uint8_t *)&if_addr->address.in6_addr.s6_addr,
+                		       config.mPrefix.mLength)) {
+                	LOG_INF("✅ address is routable outside the mesh network");
+                	k_event_post(&events, ROUTABLE_ADDR_SET_EVENT);
+                }
+
+                // route_available = route_available || config.mDefaultRoute;
+                // route_available = true;
+
+                // if (route_available && !IS_ENABLED(CONFIG_LOG)) {
+                //         /* If logging is disabled, stop when a route is found. */
+                //         break;
+                // }
+        }
 }
 
 // nrf/subsys/caf/modules/net_state_ot.c
@@ -131,7 +168,6 @@ static void on_thread_state_changed(otChangedFlags flags,
 {
 	bool has_neighbors = check_neighbors(ot_context->instance);
 	bool route_available = check_routes(ot_context->instance);
-	bool has_address = flags & OT_CHANGED_IP6_ADDRESS_ADDED;
 
 	LOG_INF("state: 0x%.8x has_neighbours:%s route_available:%s", flags,
 		(has_neighbors)?("yes"):("no"), (route_available)?("yes"):("no"));
@@ -140,7 +176,7 @@ static void on_thread_state_changed(otChangedFlags flags,
 		k_event_clear(&events, MESH_LOCAL_ADDR_SET_EVENT);
 
 		net_if_ipv6_addr_foreach(ot_context->iface,
-					 check_ipv6_addr, NULL);
+					 check_ipv6_addr, ot_context);
 	}
 
 	if (flags & OT_CHANGED_THREAD_ROLE) {

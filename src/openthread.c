@@ -24,12 +24,20 @@ static K_EVENT_DEFINE(low_latency_events);
 
 static bool has_neighbors(otInstance *instance)
 {
+        char addr_str[OT_EXT_ADDRESS_SIZE * 2 + 1];
+        char *addr_ptr;
+        int i;
         otNeighborInfoIterator iterator = OT_NEIGHBOR_INFO_ITERATOR_INIT;
         otNeighborInfo info;
         bool neighbor_found = false;
 
         while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
-                LOG_INF("🖥️  neighbor: %016llx", *((uint64_t *)info.mExtAddress.m8));
+        	for (addr_ptr = addr_str, i = 0; i < OT_EXT_ADDRESS_SIZE; i++) {
+        		addr_ptr += sprintf(addr_ptr, "%02x",
+        				    info.mExtAddress.m8[i]);
+        	}
+
+                LOG_INF("🖥️  neighbor: %s", addr_str);
                 LOG_INF("└── age: %d", info.mAge);
 
                 neighbor_found = true;

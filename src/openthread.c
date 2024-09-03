@@ -115,8 +115,13 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 			      ARRAY_SIZE(addr_str));
         LOG_INF("%s", addr_str);
 
+        if (net_ipv6_is_ll_addr(&if_addr->address.in6_addr)) {
+        	LOG_INF("└── link-local address");
+		return;
+	}
+
         if (!net_ipv6_is_ula_addr(&if_addr->address.in6_addr)) {
-        	LOG_INF("└── not a ULA address");
+        	LOG_WRN("└── not a ULA address");
 		return;
 	}
 

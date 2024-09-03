@@ -51,16 +51,12 @@ static K_EVENT_DEFINE(low_latency_events);
 
 static bool has_neighbors(otInstance *instance)
 {
-	char addr_str[INET6_ADDRSTRLEN];
         otNeighborInfoIterator iterator = OT_NEIGHBOR_INFO_ITERATOR_INIT;
         otNeighborInfo info;
         bool neighbor_found = false;
 
         while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
-                net_addr_ntop(AF_INET6, &info.mExtAddress,
-			      addr_str,
-			      ARRAY_SIZE(addr_str));
-                LOG_INF("Neighbor addr: %s", addr_str);
+                LOG_INF("🖥️  neighbor: %016llx", *((uint64_t *)info.mExtAddress.m8));
                 LOG_INF("└── age: %d", info.mAge);
 
                 neighbor_found = true;

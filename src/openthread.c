@@ -126,7 +126,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 	}
 
 	if (if_addr->is_mesh_local) {
-		LOG_INF("└── mesh local address");
+		LOG_INF("└── ✅ mesh local address");
 		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
 	}
 
@@ -140,7 +140,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
                 if (net_ipv6_is_prefix((uint8_t *)&config.mPrefix.mPrefix.mFields.m8,
                 		       (uint8_t *)&if_addr->address.in6_addr.s6_addr,
                 		       config.mPrefix.mLength)) {
-                	LOG_INF("├── routable address");
+                	LOG_INF("├── ✅ routable address");
                 	LOG_INF("└── prefix: %s", addr_str);
                 	LOG_INF("    ├── default: %s", config.mDefaultRoute ? "yes" : "no");
                 	LOG_INF("    └── preferred: %s", config.mPreferred ? "yes" : "no");

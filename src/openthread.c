@@ -7,21 +7,18 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 
+#include "mymodule/base/openthread.h"
+
 // #define CSL_LOW_LATENCY_PERIOD_MS 	10
 #define CSL_NORMAL_LATENCY_PERIOD_MS 	500
 
 #define LOW_LATENCY_POLL_PERIOD_MS	10
 
-#define ROLE_SET_EVENT			BIT(0)
-#define MESH_LOCAL_ADDR_SET_EVENT	BIT(1)
-#define ROUTABLE_ADDR_SET_EVENT		BIT(2)
-#define HAS_NEIGHBORS_EVENT		BIT(3)
-
 #define LOW_LATENCY_EVENT_REQ_LOW	BIT(0)
 #define LOW_LATENCY_EVENT_REQ_NORMAL	BIT(1)
 #define LOW_LATENCY_EVENT_FORCE_NORMAL	BIT(2)
 
-static K_EVENT_DEFINE(events);
+static K_EVENT_DEFINE(mesh_events);
 static K_EVENT_DEFINE(low_latency_events);
 
 
@@ -70,7 +67,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 
 	if (if_addr->is_mesh_local) {
 		LOG_INF("└── ✅ mesh local address");
-		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
+		k_event_post(&mesh_events, OT_MESH_LOCAL_ADDR_SET);
 	}
 
         while (otNetDataGetNextOnMeshPrefix(ot_context->instance,
@@ -87,7 +84,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
                 	LOG_INF("└── prefix: %s", addr_str);
                 	LOG_INF("    ├── default: %s", config.mDefaultRoute ? "yes" : "no");
                 	LOG_INF("    └── preferred: %s", config.mPreferred ? "yes" : "no");
-                	k_event_post(&events, ROUTABLE_ADDR_SET_EVENT);
+                	k_event_post(&mesh_events, OT_ROUTABLE_ADDR_SET);
                 }
         }
 }
@@ -101,25 +98,25 @@ static void on_thread_state_changed(otChangedFlags flags,
 		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_LEADER:
 			LOG_INF("🛜  leader role set");
-			k_event_post(&events, ROLE_SET_EVENT);
+			k_event_post(&mesh_events, OT_ROLE_SET);
 			break;
 
 		case OT_DEVICE_ROLE_ROUTER:
 			LOG_INF("🛜  router role set");
-			k_event_post(&events, ROLE_SET_EVENT);
+			k_event_post(&mesh_events, OT_ROLE_SET);
 			break;
 
 		case OT_DEVICE_ROLE_CHILD:
 			LOG_INF("🛜  child role set");
-			k_event_post(&events, ROLE_SET_EVENT);
+			k_event_post(&mesh_events, OT_ROLE_SET);
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
 			LOG_INF("❌ no role set");
-			k_event_set(&events, 0);
-			break;
+			k_event_set(&mesh_events, 0);
+			return;
 		}
 	}
 
@@ -128,9 +125,9 @@ static void on_thread_state_changed(otChangedFlags flags,
 					 check_ipv6_addr, ot_context);
 	}
 
-	if (k_event_test(&events, MESH_LOCAL_ADDR_SET_EVENT)
+	if (k_event_test(&mesh_events, OT_MESH_LOCAL_ADDR_SET)
 			&& has_neighbors(ot_context->instance)) {
-		k_event_post(&events, HAS_NEIGHBORS_EVENT);
+		k_event_post(&mesh_events, OT_HAS_NEIGHBORS);
 	}
 }
 
@@ -314,15 +311,9 @@ int openthread_my_start(void)
 	return openthread_start(ot_context);
 }
 
-int openthread_wait_for_ready(void)
+int openthread_wait(uint32_t events)
 {
-	// k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_FOREVER);
+	k_event_wait_all(&mesh_events, events, false, K_FOREVER);
 
 	return 0;
-}
-
-bool openthread_is_ready()
-{
-	// return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
-	return false;
 }

@@ -121,13 +121,18 @@ static void on_thread_state_changed(otChangedFlags flags,
 	}
 
 	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
+		LOG_INF("🗞️  address added");
 		net_if_ipv6_addr_foreach(ot_context->iface,
 					 check_ipv6_addr, ot_context);
 	}
 
-	if (k_event_test(&mesh_events, OT_MESH_LOCAL_ADDR_SET)
-			&& has_neighbors(ot_context->instance)) {
-		k_event_post(&mesh_events, OT_HAS_NEIGHBORS);
+	if (k_event_test(&mesh_events, OT_MESH_LOCAL_ADDR_SET)) {
+		if (has_neighbors(ot_context->instance)) {
+			k_event_post(&mesh_events, OT_HAS_NEIGHBORS);
+		}
+		else {
+			LOG_INF("❌ no neighbors found");
+		}
 	}
 }
 

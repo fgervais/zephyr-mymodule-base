@@ -7,93 +7,94 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 
+#include "mymodule/base/openthread.h"
+
 // #define CSL_LOW_LATENCY_PERIOD_MS 	10
 #define CSL_NORMAL_LATENCY_PERIOD_MS 	500
 
 #define LOW_LATENCY_POLL_PERIOD_MS	10
 
-#define OPENTHREAD_READY_EVENT		BIT(0)
-
 #define LOW_LATENCY_EVENT_REQ_LOW	BIT(0)
 #define LOW_LATENCY_EVENT_REQ_NORMAL	BIT(1)
 #define LOW_LATENCY_EVENT_FORCE_NORMAL	BIT(2)
 
-static K_EVENT_DEFINE(events);
+static K_EVENT_DEFINE(mesh_events);
 static K_EVENT_DEFINE(low_latency_events);
 
 
-static void format_address(char *buffer, size_t buffer_size, const uint8_t *addr_m8,
-			   size_t addr_size)
+static bool has_neighbors(otInstance *instance)
 {
-	if (addr_size == 0) {
-		buffer[0] = 0;
+        char addr_str[OT_EXT_ADDRESS_SIZE * 2 + 1];
+        char *addr_ptr;
+        int i;
+        otNeighborInfoIterator iterator = OT_NEIGHBOR_INFO_ITERATOR_INIT;
+        otNeighborInfo info;
+        bool neighbor_found = false;
+
+        while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
+        	for (addr_ptr = addr_str, i = 0; i < OT_EXT_ADDRESS_SIZE; i++) {
+        		addr_ptr += sprintf(addr_ptr, "%02x",
+        				    info.mExtAddress.m8[i]);
+        	}
+
+                LOG_INF("🖥️  neighbor: %s", addr_str);
+                LOG_INF("└── age: %d", info.mAge);
+
+                neighbor_found = true;
+
+                if (!IS_ENABLED(CONFIG_LOG)) {
+                        break;
+                }
+        }
+
+        return neighbor_found;
+}
+
+static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
+			    void *user_data)
+{
+        char addr_str[INET6_ADDRSTRLEN];
+	otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
+        otBorderRouterConfig config;
+        struct openthread_context *ot_context = user_data;
+
+	net_addr_ntop(AF_INET6, &if_addr->address.in6_addr,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
+        LOG_INF("%s", addr_str);
+
+        if (net_ipv6_is_ll_addr(&if_addr->address.in6_addr)) {
+        	LOG_INF("└── link-local address");
 		return;
 	}
 
-	size_t pos = 0;
-
-	for (size_t i = 0; i < addr_size; i++) {
-		int ret = snprintf(&buffer[pos], buffer_size - pos, "%.2x", addr_m8[i]);
-
-		if ((ret > 0) && ((size_t)ret < buffer_size - pos)) {
-			pos += ret;
-		} else {
-			break;
-		}
+        if (!net_ipv6_is_ula_addr(&if_addr->address.in6_addr)) {
+        	LOG_WRN("└── not a ULA address");
+		return;
 	}
-}
 
-static bool check_neighbors(otInstance *instance)
-{
-        otNeighborInfoIterator iterator = OT_NEIGHBOR_INFO_ITERATOR_INIT;
-        otNeighborInfo info;
+	if (if_addr->is_mesh_local) {
+		LOG_INF("└── ✅ mesh local address");
+		k_event_post(&mesh_events, OT_MESH_LOCAL_ADDR_SET);
+	}
 
-        bool has_neighbors = false;
+        while (otNetDataGetNextOnMeshPrefix(ot_context->instance,
+        				    &iterator,
+        				    &config) == OT_ERROR_NONE) {
+                net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
+			      addr_str,
+			      ARRAY_SIZE(addr_str));
 
-        while (otThreadGetNextNeighborInfo(instance, &iterator, &info) == OT_ERROR_NONE) {
-                char addr_str[ARRAY_SIZE(info.mExtAddress.m8) * 2 + 1];
-
-                format_address(addr_str, sizeof(addr_str), info.mExtAddress.m8,
-                               ARRAY_SIZE(info.mExtAddress.m8));
-                LOG_INF("Neighbor addr:%s age:%" PRIu32, addr_str, info.mAge);
-
-                has_neighbors = true;
-
-                if (!IS_ENABLED(CONFIG_LOG)) {
-                        /* If logging is disabled, stop when a neighbor is found. */
-                        break;
+                if (net_ipv6_is_prefix((uint8_t *)&config.mPrefix.mPrefix.mFields.m8,
+                		       (uint8_t *)&if_addr->address.in6_addr.s6_addr,
+                		       config.mPrefix.mLength)) {
+                	LOG_INF("├── ✅ routable address");
+                	LOG_INF("└── prefix: %s", addr_str);
+                	LOG_INF("    ├── default: %s", config.mDefaultRoute ? "yes" : "no");
+                	LOG_INF("    └── preferred: %s", config.mPreferred ? "yes" : "no");
+                	k_event_post(&mesh_events, OT_ROUTABLE_ADDR_SET);
                 }
         }
-
-        return has_neighbors;
-}
-
-static bool check_routes(otInstance *instance)
-{
-        otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
-        otBorderRouterConfig config;
-
-        bool route_available = false;
-
-        while (otNetDataGetNextOnMeshPrefix(instance, &iterator, &config) == OT_ERROR_NONE) {
-                char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
-
-                format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
-                               ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
-                LOG_INF("Route prefix:%s default:%s preferred:%s", addr_str,
-                        (config.mDefaultRoute)?("yes"):("no"),
-                        (config.mPreferred)?("yes"):("no"));
-
-                // route_available = route_available || config.mDefaultRoute;
-                route_available = true;
-
-                if (route_available && !IS_ENABLED(CONFIG_LOG)) {
-                        /* If logging is disabled, stop when a route is found. */
-                        break;
-                }
-        }
-
-        return route_available;
 }
 
 // nrf/subsys/caf/modules/net_state_ot.c
@@ -101,48 +102,45 @@ static void on_thread_state_changed(otChangedFlags flags,
 				    struct openthread_context *ot_context,
 				    void *user_data)
 {
-	static bool has_role;
-
-	bool has_neighbors = check_neighbors(ot_context->instance);
-	bool route_available = check_routes(ot_context->instance);
-	bool has_address = flags & OT_CHANGED_IP6_ADDRESS_ADDED;
-
-	LOG_INF("state: 0x%.8x has_neighbours:%s route_available:%s", flags,
-		(has_neighbors)?("yes"):("no"), (route_available)?("yes"):("no"));
-
 	if (flags & OT_CHANGED_THREAD_ROLE) {
 		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_LEADER:
-			LOG_INF("Leader role set");
-			has_role = true;
-			break;
-
-		case OT_DEVICE_ROLE_CHILD:
-			LOG_INF("Child role set");
-			has_role = true;
+			LOG_INF("🛜  leader role set");
+			k_event_post(&mesh_events, OT_ROLE_SET);
 			break;
 
 		case OT_DEVICE_ROLE_ROUTER:
-			LOG_INF("Router role set");
-			has_role = true;
+			LOG_INF("🛜  router role set");
+			k_event_post(&mesh_events, OT_ROLE_SET);
+			break;
+
+		case OT_DEVICE_ROLE_CHILD:
+			LOG_INF("🛜  child role set");
+			k_event_post(&mesh_events, OT_ROLE_SET);
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
-			LOG_INF("No role set");
-			has_role = false;
-			break;
+			LOG_INF("❌ no role set");
+			k_event_set(&mesh_events, 0);
+			return;
 		}
 	}
 
-	if (has_role && has_neighbors && route_available && has_address) {
-		// Something else is not ready, not sure what
-		k_sleep(K_MSEC(100));
-		LOG_INF("🛜  openthread ready!");
-		k_event_post(&events, OPENTHREAD_READY_EVENT);
-	} else {
-		k_event_set(&events, 0);
+	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
+		LOG_INF("🗞️  address added");
+		net_if_ipv6_addr_foreach(ot_context->iface,
+					 check_ipv6_addr, ot_context);
+	}
+
+	if (k_event_test(&mesh_events, OT_MESH_LOCAL_ADDR_SET)) {
+		if (has_neighbors(ot_context->instance)) {
+			k_event_post(&mesh_events, OT_HAS_NEIGHBORS);
+		}
+		else {
+			LOG_INF("❌ no neighbors found");
+		}
 	}
 }
 
@@ -150,6 +148,8 @@ static struct openthread_state_changed_cb ot_state_chaged_cb = {
 	.state_changed_cb = on_thread_state_changed
 };
 
+
+#ifdef CONFIG_OPENTHREAD_MTD_SED
 static bool is_mtd_in_med_mode(otInstance *instance)
 {
 	return otThreadGetLinkMode(instance).mRxOnWhenIdle;
@@ -163,11 +163,6 @@ static bool is_mtd_in_med_mode(otInstance *instance)
 // 	otErr = otLinkCslSetPeriod(instance,
 // 			period_ms * 1000 / OT_US_PER_TEN_SYMBOLS);
 // }
-
-bool openthread_is_ready()
-{
-	return k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_NO_WAIT);
-}
 
 static void openthread_set_low_latency()
 {
@@ -276,9 +271,10 @@ static void receive_latency_management_thread_function(void)
 }
 
 K_THREAD_DEFINE(receive_latency_thread,
-		CONFIG_MY_MODULE_BASE_HA_OT_LATENCY_THREAD_STACK_SIZE,
+		MY_MODULE_BASE_OT_LATENCY_THREAD_STACK_SIZE,
 		receive_latency_management_thread_function, NULL, NULL, NULL,
 		-2, 0, SYS_FOREVER_MS);
+#endif /* CONFIG_OPENTHREAD_MTD_SED */
 
 int openthread_erase_persistent_info(void)
 {
@@ -310,6 +306,7 @@ int openthread_my_start(void)
 		return ret;
 	}
 
+#ifdef CONFIG_OPENTHREAD_MTD_SED
 	k_thread_start(receive_latency_thread);
 
 	openthread_api_mutex_lock(ot_context);
@@ -322,13 +319,14 @@ int openthread_my_start(void)
 		ot_context->instance,
 		(int)(CONFIG_OPENTHREAD_POLL_PERIOD / 1000) + 4);
 	openthread_api_mutex_unlock(ot_context);
+#endif
 
 	return openthread_start(ot_context);
 }
 
-int openthread_wait_for_ready(void)
+int openthread_wait(uint32_t events)
 {
-	k_event_wait(&events, OPENTHREAD_READY_EVENT, false, K_FOREVER);
+	k_event_wait_all(&mesh_events, events, false, K_FOREVER);
 
 	return 0;
 }

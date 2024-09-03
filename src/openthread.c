@@ -113,14 +113,15 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 	net_addr_ntop(AF_INET6, &if_addr->address.in6_addr,
 			      addr_str,
 			      ARRAY_SIZE(addr_str));
-        LOG_INF("🔍 address: %s", addr_str);
+        LOG_INF("%s", addr_str);
 
         if (!net_ipv6_is_ula_addr(&if_addr->address.in6_addr)) {
+        	LOG_INF("└── not a ULA address");
 		return;
 	}
 
 	if (if_addr->is_mesh_local) {
-		LOG_INF("└── is_mesh_local: %d", if_addr->is_mesh_local);
+		LOG_INF("└── mesh local address");
 		k_event_post(&events, MESH_LOCAL_ADDR_SET_EVENT);
 	}
 
@@ -131,14 +132,13 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 			      addr_str,
 			      ARRAY_SIZE(addr_str));
 
-                LOG_INF("Outside mesh prefix: %s", addr_str);
-                LOG_INF("└── default: %s", config.mDefaultRoute ? "yes" : "no");
-                LOG_INF("└── preferred: %s", config.mPreferred ? "yes" : "no");
-
                 if (net_ipv6_is_prefix((uint8_t *)&config.mPrefix.mPrefix.mFields.m8,
                 		       (uint8_t *)&if_addr->address.in6_addr.s6_addr,
                 		       config.mPrefix.mLength)) {
-                	LOG_INF("✅ address is routable outside the mesh network");
+                	LOG_INF("├── routable address");
+                	LOG_INF("└── prefix: %s", addr_str);
+                	LOG_INF("    ├── default: %s", config.mDefaultRoute ? "yes" : "no");
+                	LOG_INF("    └── preferred: %s", config.mPreferred ? "yes" : "no");
                 	k_event_post(&events, ROUTABLE_ADDR_SET_EVENT);
                 }
 
@@ -160,24 +160,24 @@ static void on_thread_state_changed(otChangedFlags flags,
 	if (flags & OT_CHANGED_THREAD_ROLE) {
 		switch (otThreadGetDeviceRole(ot_context->instance)) {
 		case OT_DEVICE_ROLE_LEADER:
-			LOG_INF("Leader role set");
-			k_event_post(&events, ROLE_SET_EVENT);
-			break;
-
-		case OT_DEVICE_ROLE_CHILD:
-			LOG_INF("Child role set");
+			LOG_INF("🛜  leader role set");
 			k_event_post(&events, ROLE_SET_EVENT);
 			break;
 
 		case OT_DEVICE_ROLE_ROUTER:
-			LOG_INF("Router role set");
+			LOG_INF("🛜  router role set");
+			k_event_post(&events, ROLE_SET_EVENT);
+			break;
+
+		case OT_DEVICE_ROLE_CHILD:
+			LOG_INF("🛜  child role set");
 			k_event_post(&events, ROLE_SET_EVENT);
 			break;
 
 		case OT_DEVICE_ROLE_DISABLED:
 		case OT_DEVICE_ROLE_DETACHED:
 		default:
-			LOG_INF("No role set");
+			LOG_INF("❌ no role set");
 			k_event_set(&events, 0);
 			break;
 		}

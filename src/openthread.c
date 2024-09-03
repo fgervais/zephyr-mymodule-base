@@ -12,11 +12,8 @@ LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 
 #define LOW_LATENCY_POLL_PERIOD_MS	10
 
-// #define OPENTHREAD_READY_EVENT		BIT(0)
-// #define ULA_ADDR_SET_EVENT		BIT(1)
 #define ROLE_SET_EVENT			BIT(0)
 #define MESH_LOCAL_ADDR_SET_EVENT	BIT(1)
-// #define ROUTABLE_PREFIX_SET_EVENT	BIT(2)
 #define ROUTABLE_ADDR_SET_EVENT		BIT(2)
 #define HAS_NEIGHBORS_EVENT		BIT(3)
 
@@ -27,27 +24,6 @@ LOG_MODULE_REGISTER(openthread, LOG_LEVEL_DBG);
 static K_EVENT_DEFINE(events);
 static K_EVENT_DEFINE(low_latency_events);
 
-
-// static void format_address(char *buffer, size_t buffer_size, const uint8_t *addr_m8,
-// 			   size_t addr_size)
-// {
-// 	if (addr_size == 0) {
-// 		buffer[0] = 0;
-// 		return;
-// 	}
-
-// 	size_t pos = 0;
-
-// 	for (size_t i = 0; i < addr_size; i++) {
-// 		int ret = snprintf(&buffer[pos], buffer_size - pos, "%.2x", addr_m8[i]);
-
-// 		if ((ret > 0) && ((size_t)ret < buffer_size - pos)) {
-// 			pos += ret;
-// 		} else {
-// 			break;
-// 		}
-// 	}
-// }
 
 static bool has_neighbors(otInstance *instance)
 {
@@ -68,39 +44,6 @@ static bool has_neighbors(otInstance *instance)
 
         return neighbor_found;
 }
-
-// static bool check_routes(otInstance *instance)
-// {
-//         otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
-//         otBorderRouterConfig config;
-//         char addr_str[INET6_ADDRSTRLEN];
-
-//         bool route_available = false;
-
-//         while (otNetDataGetNextOnMeshPrefix(instance, &iterator, &config) == OT_ERROR_NONE) {
-//                 // char addr_str[ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8) * 2 + 1] = {0};
-
-//                 // format_address(addr_str, sizeof(addr_str), config.mPrefix.mPrefix.mFields.m8,
-//                 //                ARRAY_SIZE(config.mPrefix.mPrefix.mFields.m8));
-
-//                 net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
-// 			      addr_str,
-// 			      ARRAY_SIZE(addr_str));
-//                 LOG_INF("Route prefix:%s default:%s preferred:%s", addr_str,
-//                         config.mDefaultRoute ? "yes" : "no",
-//                         config.mPreferred ? "yes" : "no");
-
-//                 // route_available = route_available || config.mDefaultRoute;
-//                 route_available = true;
-
-//                 if (route_available && !IS_ENABLED(CONFIG_LOG)) {
-//                         /* If logging is disabled, stop when a route is found. */
-//                         break;
-//                 }
-//         }
-
-//         return route_available;
-// }
 
 static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 			    void *user_data)
@@ -146,14 +89,6 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
                 	LOG_INF("    └── preferred: %s", config.mPreferred ? "yes" : "no");
                 	k_event_post(&events, ROUTABLE_ADDR_SET_EVENT);
                 }
-
-                // route_available = route_available || config.mDefaultRoute;
-                // route_available = true;
-
-                // if (route_available && !IS_ENABLED(CONFIG_LOG)) {
-                //         /* If logging is disabled, stop when a route is found. */
-                //         break;
-                // }
         }
 }
 
@@ -197,15 +132,6 @@ static void on_thread_state_changed(otChangedFlags flags,
 			&& has_neighbors(ot_context->instance)) {
 		k_event_post(&events, HAS_NEIGHBORS_EVENT);
 	}
-
-	// if (has_role && has_neighbors && route_available && has_address) {
-	// 	// Something else is not ready, not sure what
-	// 	k_sleep(K_MSEC(100));
-	// 	LOG_INF("🛜  openthread ready!");
-	// 	k_event_post(&events, OPENTHREAD_READY_EVENT);
-	// } else {
-	// 	k_event_set(&events, 0);
-	// }
 }
 
 static struct openthread_state_changed_cb ot_state_chaged_cb = {

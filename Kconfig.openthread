@@ -15,6 +15,13 @@ config MY_MODULE_BASE_OT_LATENCY_THREAD_STACK_SIZE
 	help
 	  OpenThread latency thread stack size.
 
+config MY_MODULE_BASE_OT_LOW_LATENCY_TIMEOUT
+	int "OpenThread low latency timeout"
+	default 3
+	depends on OPENTHREAD_MTD_SED
+	help
+	  OpenThread low latency timeout in seconds.
+
 config OPENTHREAD_POLL_PERIOD
 	default 716000
 	depends on OPENTHREAD_MTD_SED

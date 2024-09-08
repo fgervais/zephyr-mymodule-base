@@ -221,6 +221,7 @@ static void receive_latency_management_thread_function(void)
 {
 	int low_latency_request_level = 0;
 	bool timeout_enabled = false;
+	int timeout = CONFIG_MY_MODULE_BASE_OT_LOW_LATENCY_TIMEOUT;
 	uint32_t events;
  
 	while (1) {
@@ -229,7 +230,7 @@ static void receive_latency_management_thread_function(void)
 			 LOW_LATENCY_EVENT_REQ_NORMAL |
 			 LOW_LATENCY_EVENT_FORCE_NORMAL),
 			false,
-			timeout_enabled ? K_SECONDS(3) : K_FOREVER);
+			timeout_enabled ? K_SECONDS(timeout) : K_FOREVER);
 		k_event_set(&low_latency_events, 0);
 
 		LOG_INF("⏰ events: %08x", events);

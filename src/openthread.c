@@ -275,6 +275,21 @@ K_THREAD_DEFINE(receive_latency_thread,
 		CONFIG_MY_MODULE_BASE_OT_LATENCY_THREAD_STACK_SIZE,
 		receive_latency_management_thread_function, NULL, NULL, NULL,
 		-2, 0, SYS_FOREVER_MS);
+#else
+void openthread_request_low_latency(const char *reason)
+{
+
+}
+
+void openthread_request_normal_latency(const char *reason)
+{
+
+}
+
+void openthread_force_normal_latency(const char *reason)
+{
+
+}
 #endif /* CONFIG_OPENTHREAD_MTD_SED */
 
 int openthread_erase_persistent_info(void)

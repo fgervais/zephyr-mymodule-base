@@ -31,6 +31,8 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 #define MQTT_BASE_PATH_FORMAT_STRING "action_button/%s"
 #elif defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_LEAK_DETECTOR)
 #define MQTT_BASE_PATH_FORMAT_STRING "leak_detector/%s"
+#elif defined(CONFIG_MY_MODULE_BASE_HA_DEV_TYPE_POWER_STATION)
+#define MQTT_BASE_PATH_FORMAT_STRING "power_station/%s"
 #else
 #error "No device type defined"
 #endif

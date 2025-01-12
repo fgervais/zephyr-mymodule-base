@@ -31,6 +31,8 @@ config MY_MODULE_BASE_HA_DEVICE_NAME
 
 choice MY_MODULE_BASE_HA_DEVICE_TYPE
 	bool "Device type"
+	help
+	  Used to set the MQTT base path.
 	default MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
 
 config MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
@@ -41,6 +43,9 @@ config MY_MODULE_BASE_HA_DEV_TYPE_ACTION_BUTTON
 
 config MY_MODULE_BASE_HA_DEV_TYPE_LEAK_DETECTOR
 	bool "Leak detector"
+
+config MY_MODULE_BASE_HA_DEV_TYPE_POWER_STATION
+	bool "Power Station"
 endchoice
 
 config MY_MODULE_BASE_HA_USE_TEST_DISCOVERY_TOPIC

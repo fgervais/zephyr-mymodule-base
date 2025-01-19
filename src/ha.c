@@ -20,6 +20,7 @@ LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
 
 #include "mymodule/base/ha.h"
 #include "mymodule/base/mqtt.h"
+#include "mymodule/base/uid.h"
 
 
 #define JSON_CONFIG_BUFFER_SIZE		1024
@@ -221,13 +222,19 @@ static int ha_send_trigger_discovery(struct ha_trigger_config *conf)
 	return 0;
 }
 
-int ha_start(const char *device_id, bool inhibit_discovery,
-	     bool enable_last_will)
+int ha_start(bool inhibit_discovery, bool enable_last_will)
 {
 	int ret;
 
-	device_id_hex_string = device_id;
 	inhibit_discovery_mode = inhibit_discovery;
+
+	ret = uid_init();
+        if (ret < 0) {
+                LOG_ERR("Could not init uid module");
+                return ret;
+        }
+
+        device_id_hex_string = uid_get_device_id();
 
 	ret = snprintf(mqtt_base_path, sizeof(mqtt_base_path),
 		 MQTT_BASE_PATH_FORMAT_STRING, device_id_hex_string);

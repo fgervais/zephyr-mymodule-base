@@ -2,6 +2,7 @@ menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	bool "Home Assistant support"
 
 	select MY_MODULE_BASE_OPENTHREAD
+	select MY_MODULE_BASE_UID
 
 	select DNS_RESOLVER
 	select EVENTS

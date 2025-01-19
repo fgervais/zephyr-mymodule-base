@@ -63,6 +63,10 @@ int uid_init(void)
 {
 	int ret;
 
+	if (strlen(device_id_hex_string) > 0) {
+		goto out;
+	}
+
 	ret = get_device_id_as_string(
 		device_id_hex_string,
 		ARRAY_SIZE(device_id_hex_string));
@@ -71,5 +75,6 @@ int uid_init(void)
 		return ret;
 	}
 
+out:
 	return 0;
 }

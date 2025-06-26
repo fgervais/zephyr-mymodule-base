@@ -34,7 +34,10 @@ choice MY_MODULE_BASE_HA_DEVICE_TYPE
 	bool "Device type"
 	help
 	  Used to set the MQTT base path.
-	default MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
+	default MY_MODULE_BASE_HA_DEV_TYPE_GENERIC
+
+config MY_MODULE_BASE_HA_DEV_TYPE_GENERIC
+	bool "Generic device"
 
 config MY_MODULE_BASE_HA_DEV_TYPE_AIR_QUALITY
 	bool "Air Quality device"

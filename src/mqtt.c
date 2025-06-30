@@ -91,12 +91,8 @@ static void broker_init(void)
 	broker6->sin6_family = AF_INET6;
 	broker6->sin6_port = htons(CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT);
 
-#if defined(CONFIG_DNS_RESOLVER)
 	net_ipaddr_copy(&broker6->sin6_addr,
 			&net_sin6(haddr->ai_addr)->sin6_addr);
-#else
-	zsock_inet_pton(AF_INET6, CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_ADDR, &broker6->sin_addr);
-#endif
 
 	k_work_init_delayable(&keepalive_work, keepalive);
 }
@@ -513,7 +509,6 @@ abort:
 	return -EINVAL;
 }
 
-#if defined(CONFIG_DNS_RESOLVER)
 static int get_mqtt_broker_addrinfo(void)
 {
 	int retries = 3;
@@ -566,7 +561,6 @@ static int get_mqtt_broker_addrinfo(void)
 
 	return rc;
 }
-#endif
 
 static int connect_to_server(void)
 {
@@ -574,12 +568,10 @@ static int connect_to_server(void)
 
 	LOG_INF("🔌 connect to server");
 
-#if defined(CONFIG_DNS_RESOLVER)
 	rc = get_mqtt_broker_addrinfo();
 	if (rc) {
 		return rc;
 	}
-#endif
 
 	rc = try_to_connect(&client_ctx);
 	if (rc) {

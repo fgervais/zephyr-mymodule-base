@@ -60,12 +60,7 @@ config MY_MODULE_BASE_HA_USE_TEST_DISCOVERY_TOPIC
 config MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME
 	string "MQTT server hostname"
 	help
-	  Hostname of MQTT server.
-
-config MY_MODULE_BASE_HA_MQTT_SERVER_ADDR
-	string "MQTT server address"
-	help
-	  MQTT server address.
+	  Hostname or IP of MQTT server.
 
 config MY_MODULE_BASE_HA_MQTT_SERVER_PORT
 	int "MQTT server port number"

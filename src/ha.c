@@ -630,3 +630,30 @@ retry:
 		goto retry;
 	}
 }
+
+int ha_subscribe_to_device_topic(struct ha_device_subscription *subscription)
+{
+	int ret;
+
+	ret = snprintf(subscription->mqtt_subscription.topic,
+		       sizeof(subscription->mqtt_subscription.topic),
+		       "%s/%s",
+		       mqtt_base_path, subscription->topic);
+	if (ret < 0 && ret >= sizeof(subscription->mqtt_subscription.topic)) {
+		LOG_ERR("Could not set absolute_topic");
+		return -ENOMEM;
+	}
+
+	subscription->mqtt_subscription.callback = subscription->callback;
+
+	LOG_INF("🔔 subscribing to topic: %s",
+		subscription->mqtt_subscription.topic);
+
+	ret = mqtt_subscribe_to_topic(&subscription->mqtt_subscription);
+	if (ret < 0) {
+		LOG_ERR("Could subscribe to topic");
+		return ret;
+	}
+
+	return 0;
+}

@@ -12,7 +12,8 @@
 
 
 struct mqtt_subscription {
-	const char *topic;
+	sys_snode_t node;
+	char topic[MQTT_TOPIC_MAX_SIZE];
 	void (*callback)(const char *);
 };
 
@@ -28,8 +29,7 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain,
 			  uint32_t *message_id);
 int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
 				   char *payload, bool retain);
-int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
-			    size_t nb_of_subs);
+int mqtt_subscribe_to_topic(struct mqtt_subscription *subscription);
 int mqtt_watchdog_init(const struct device *watchdog, int channel_id);
 int mqtt_transfer_init(struct mqtt_transfer *transfer);
 int mqtt_init(const char *dev_id,

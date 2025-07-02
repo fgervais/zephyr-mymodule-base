@@ -39,6 +39,15 @@ struct ha_trigger {
 	struct mqtt_transfer mqtt_transfer;
 };
 
+struct ha_device_subscription {
+	// Set by user
+	const char *topic;
+	void (* const callback)(const char *);
+
+	// Internal use
+	struct mqtt_subscription mqtt_subscription;
+};
+
 int ha_start(bool inhibit_discovery, bool enable_last_will);
 int ha_set_online();
 
@@ -69,5 +78,6 @@ void ha_send_binary_sensor_retry(struct ha_sensor *,
 			         uint32_t flags);
 void ha_set_online_retry(int max_retries, int retry_delay_sec,
 			 uint32_t flags);
+int ha_subscribe_to_device_topic(struct ha_device_subscription *subscription);
 
 #endif /* HA_H_ */

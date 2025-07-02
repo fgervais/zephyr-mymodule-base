@@ -29,9 +29,6 @@ static int nfds;
 
 static const char *device_id;
 
-static const struct mqtt_subscription *subscriptions;
-static size_t number_of_subscriptions;
-
 static struct k_work_delayable keepalive_work;
 
 #if defined(CONFIG_DNS_RESOLVER)
@@ -45,7 +42,9 @@ static int wdt_channel_id = -1;
 static K_EVENT_DEFINE(mqtt_events);
 
 static K_MUTEX_DEFINE(publish_list_lock);
+static K_MUTEX_DEFINE(subscription_list_lock);
 static sys_slist_t publish_list = SYS_SLIST_STATIC_INIT(&publish_list);
+static sys_slist_t subscription_list = SYS_SLIST_STATIC_INIT(&subscription_list);
 
 static int connect_to_server(void);
 static void keepalive(struct k_work *work);
@@ -271,6 +270,59 @@ out:
 	return 0;
 }
 
+static int append_subscription(sys_slist_t *list, struct k_mutex *lock,
+			       struct mqtt_subscription *subscription)
+{
+	int ret;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	sys_slist_append(list, &subscription->node);
+
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
+static int notify_publish_received(sys_slist_t *list, struct k_mutex *lock,
+				   const uint8_t *topic, uint32_t size,
+				   const char *data)
+{
+	int ret;
+	struct mqtt_subscription *subscription, *next;
+	sys_snode_t *prev = NULL;
+
+	ret = k_mutex_lock(lock, K_SECONDS(1));
+	if (ret < 0) {
+		LOG_ERR("Could not aquire list lock");
+		return ret;
+	}
+
+	LOG_INF("🐦 publish received, trying to find callback");
+
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, subscription, next, node) {
+		if (strncmp(subscription->topic, topic, size) == 0) {
+			LOG_INF("   └── ✅  subscription found, notifying");
+			subscription->callback(data);
+			goto out;
+		}
+		else {
+			prev = &subscription->node;
+		}
+	}
+
+	LOG_INF("   └── ⚠️  subscription not found");
+
+out:
+	k_mutex_unlock(lock);
+
+	return 0;
+}
+
 static void mqtt_event_handler(struct mqtt_client *const client,
 		      const struct mqtt_evt *evt)
 {
@@ -351,14 +403,12 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			len -= bytes_read;
 		}
 
-		for (int i = 0; i < number_of_subscriptions; i++) {
-			if (strncmp(subscriptions[i].topic,
-				    evt->param.publish.message.topic.topic.utf8,
-				    evt->param.publish.message.topic.topic.size) == 0) {
-				subscriptions[i].callback(data);
-				break;
-			}
-		}
+		notify_publish_received(
+			&subscription_list, &subscription_list_lock,
+			evt->param.publish.message.topic.topic.utf8,
+			evt->param.publish.message.topic.topic.size,
+			data);
+
 		break;
 
 	case MQTT_EVT_PINGRESP:
@@ -658,8 +708,7 @@ int mqtt_publish_to_topic_transfer(struct mqtt_transfer *transfer,
 	return 0;
 }
 
-int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
-			    size_t nb_of_subs)
+int mqtt_subscribe_to_topic(struct mqtt_subscription *subscription)
 {
 	int ret;
 
@@ -670,17 +719,18 @@ int mqtt_subscribe_to_topic(const struct mqtt_subscription *subs,
 		}
 	}
 
-	subscriptions = subs;
-	number_of_subscriptions = nb_of_subs;
-
-	for (int i = 0; i < nb_of_subs; i++) {
-		LOG_INF("subscribing to topic: %s", subs[i].topic);
-		ret = subscribe(&client_ctx, subs[i].topic);	
-		if (ret < 0) {
-			LOG_ERR("Could not subscribe to topic");
-			return ret;
-		}	
+	ret = append_subscription(&subscription_list, &subscription_list_lock,
+				  subscription);
+	if (ret < 0) {
+		LOG_ERR("Could not append subscription");
+		return ret;
 	}
+
+	ret = subscribe(&client_ctx, subscription->topic);	
+	if (ret < 0) {
+		LOG_ERR("Could not subscribe to topic");
+		return ret;
+	}	
 
 	return 0;
 }

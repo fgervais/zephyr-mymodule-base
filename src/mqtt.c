@@ -168,15 +168,15 @@ static int remove_expired_transfers(sys_slist_t *list, struct k_mutex *lock)
 		return ret;
 	}
 
-	LOG_INF("📋 pending transfer list:");
+	LOG_DBG("📋 pending transfer list:");
 
 	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
 		if (sys_timepoint_expired(transfer->timeout)) {
-			LOG_INF("└── %08x (expired)", transfer->message_id);
+			LOG_DBG("└── %08x (expired)", transfer->message_id);
 			sys_slist_remove(list, prev, &transfer->node);
 		}
 		else {
-			LOG_INF("└── %08x", transfer->message_id);
+			LOG_DBG("└── %08x", transfer->message_id);
 			prev = &transfer->node;
 		}
 	}
@@ -203,7 +203,7 @@ static int append_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
-	LOG_INF("queuing transfer 0x%08x", transfer->message_id);
+	LOG_DBG("queuing transfer 0x%08x", transfer->message_id);
 
 	sys_slist_append(list, &transfer->node);
 
@@ -223,7 +223,7 @@ static int remove_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
-	LOG_INF("trying to remove transfer 0x%08x", transfer->message_id);
+	LOG_DBG("trying to remove transfer 0x%08x", transfer->message_id);
 
 	sys_slist_find_and_remove(list, &transfer->node);
 
@@ -245,11 +245,11 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 		return ret;
 	}
 
-	LOG_INF("🐦 message received, trying to find transfer");
+	LOG_DBG("🐦 message received, trying to find transfer");
 
 	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(list, transfer, next, node) {
 		if (transfer->message_id == message_id) {
-			LOG_INF("   └── ✅  transfer found, notifying");
+			LOG_DBG("   └── ✅  transfer found, notifying");
 			k_event_post(&transfer->event,
 				     MQTT_MESSAGE_RECEIVED_EVENT);
 			sys_slist_remove(list, prev, &transfer->node);
@@ -262,7 +262,7 @@ static int notify_acked_transfer(sys_slist_t *list, struct k_mutex *lock,
 
 	// This is fine, maybe the transfer was not queued in the first place
 	// or if it was, the process waiting for confirmation can retransmit
-	LOG_INF("   └── ⚠️  transfer not found");
+	LOG_DBG("   └── ⚠️  transfer not found");
 
 out:
 	k_mutex_unlock(lock);
@@ -373,7 +373,7 @@ static void mqtt_event_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		LOG_INF("PUBACK packet id: 0x%08x", evt->param.puback.message_id);
+		LOG_DBG("PUBACK packet id: 0x%08x", evt->param.puback.message_id);
 		notify_acked_transfer(&publish_list, &publish_list_lock,
 				      evt->param.puback.message_id);
 		break;
@@ -490,7 +490,7 @@ static void mqtt_receive_thread_function(void)
 	while (1) {
 		wait_for_mqtt_connected();
 		if (poll_socket(SYS_FOREVER_MS)) {
-			LOG_INF("mqtt_receive_thread: mqtt_input()");
+			LOG_DBG("mqtt_receive_thread: mqtt_input()");
 			rc = mqtt_input(&client_ctx);
 			if (rc < 0) {
 				LOG_WRN("⚠️  mqtt_input (%d)", rc);
@@ -647,8 +647,8 @@ int mqtt_publish_to_topic(const char *topic, char *payload, bool retain,
 	int ret;
 	struct mqtt_publish_param param;
 
-	LOG_INF("📤 %s", topic);
-	LOG_INF("   └── payload: %s", payload);
+	LOG_DBG("📤 %s", topic);
+	LOG_DBG("   └── payload: %s", payload);
 
 	// QOS 1 to receive an puback
 	param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;

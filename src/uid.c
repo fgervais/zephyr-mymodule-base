@@ -2,7 +2,7 @@
 #include <zephyr/drivers/hwinfo.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(uid, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(uid, CONFIG_MY_MODULE_BASE_LOG_LEVEL);
 
 #include "mymodule/base/uid.h"
 

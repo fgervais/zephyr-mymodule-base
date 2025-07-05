@@ -4,7 +4,7 @@
 #include <zephyr/random/random.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(mqtt, CONFIG_MY_MODULE_BASE_LOG_LEVEL);
 
 #include "mymodule/base/mqtt.h"
 #include "mymodule/base/openthread.h"

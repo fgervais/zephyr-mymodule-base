@@ -2,7 +2,7 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(init, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(init, CONFIG_MY_MODULE_BASE_LOG_LEVEL);
 
 #include "mymodule/base/watchdog.h"
 

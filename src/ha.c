@@ -12,7 +12,7 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(home_assistant, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(home_assistant, CONFIG_MY_MODULE_BASE_LOG_LEVEL);
 
 #include <stdio.h>
 #include <stdlib.h>

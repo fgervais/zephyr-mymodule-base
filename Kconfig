@@ -1,3 +1,7 @@
+module = MY_MODULE_BASE
+module-str = my module base
+source "subsys/logging/Kconfig.template.log_config"
+
 config MY_MODULE_BASE_RESET
 	bool "Reset support"
 	select HWINFO

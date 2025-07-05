@@ -1,7 +1,7 @@
 #include <zephyr/drivers/hwinfo.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(reset, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(reset, CONFIG_MY_MODULE_BASE_LOG_LEVEL);
 
 
 static const char *cause_to_string(uint32_t cause)

@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <openthread.h>
 #include <openthread/child_supervision.h>
 #include <openthread/netdata.h>
 #include <openthread/thread.h>
+#include <zephyr/net/net_if.h>
 #include <zephyr/net/openthread.h>
 
 #include <zephyr/logging/log.h>
@@ -56,7 +58,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
         char addr_str[INET6_ADDRSTRLEN];
 	otNetworkDataIterator iterator = OT_NETWORK_DATA_ITERATOR_INIT;
         otBorderRouterConfig config;
-        struct openthread_context *ot_context = user_data;
+        struct otInstance *ot_instance = user_data;
 
 	net_addr_ntop(AF_INET6, &if_addr->address.in6_addr,
 			      addr_str,
@@ -78,7 +80,7 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 		k_event_post(&mesh_events, OT_MESH_LOCAL_ADDR_SET);
 	}
 
-        while (otNetDataGetNextOnMeshPrefix(ot_context->instance,
+        while (otNetDataGetNextOnMeshPrefix(ot_instance,
         				    &iterator,
         				    &config) == OT_ERROR_NONE) {
                 net_addr_ntop(AF_INET6, &config.mPrefix.mPrefix.mFields,
@@ -98,12 +100,13 @@ static void check_ipv6_addr(struct net_if *iface, struct net_if_addr *if_addr,
 }
 
 // nrf/subsys/caf/modules/net_state_ot.c
-static void on_thread_state_changed(otChangedFlags flags,
-				    struct openthread_context *ot_context,
-				    void *user_data)
+static void on_thread_state_changed(otChangedFlags flags, void *user_data)
 {
+	struct openthread_context *ot_context = openthread_get_default_context();
+	struct otInstance *ot_instance = openthread_get_default_instance();
+
 	if (flags & OT_CHANGED_THREAD_ROLE) {
-		switch (otThreadGetDeviceRole(ot_context->instance)) {
+		switch (otThreadGetDeviceRole(ot_instance)) {
 		case OT_DEVICE_ROLE_LEADER:
 			LOG_INF("🛜  leader role set");
 			k_event_post(&mesh_events, OT_ROLE_SET);
@@ -131,11 +134,11 @@ static void on_thread_state_changed(otChangedFlags flags,
 	if (flags & OT_CHANGED_IP6_ADDRESS_ADDED) {
 		LOG_INF("🗞️  address added");
 		net_if_ipv6_addr_foreach(ot_context->iface,
-					 check_ipv6_addr, ot_context);
+					 check_ipv6_addr, ot_instance);
 	}
 
 	if (k_event_test(&mesh_events, OT_MESH_LOCAL_ADDR_SET)) {
-		if (has_neighbors(ot_context->instance)) {
+		if (has_neighbors(ot_instance)) {
 			k_event_post(&mesh_events, OT_HAS_NEIGHBORS);
 		}
 		else {
@@ -144,13 +147,13 @@ static void on_thread_state_changed(otChangedFlags flags,
 	}
 }
 
-static struct openthread_state_changed_cb ot_state_chaged_cb = {
-	.state_changed_cb = on_thread_state_changed
+static struct openthread_state_changed_callback ot_state_chaged_cb = {
+	.otCallback = on_thread_state_changed
 };
 
 
 #ifdef CONFIG_OPENTHREAD_MTD_SED
-static bool is_mtd_in_med_mode(otInstance *instance)
+static bool is_mtd_in_med_mode(struct otInstance *instance)
 {
 	return otThreadGetLinkMode(instance).mRxOnWhenIdle;
 }
@@ -166,33 +169,33 @@ static bool is_mtd_in_med_mode(otInstance *instance)
 
 static void openthread_set_low_latency()
 {
-	struct openthread_context *ot_context = openthread_get_default_context();
+	struct otInstance *ot_instance = openthread_get_default_instance();
 
-	if (is_mtd_in_med_mode(ot_context->instance)) {
+	if (is_mtd_in_med_mode(ot_instance)) {
 		return;
 	}
 
 	LOG_INF("   └── ⏩ start low latency");
 
-	openthread_api_mutex_lock(ot_context);
-	otLinkSetPollPeriod(ot_context->instance, LOW_LATENCY_POLL_PERIOD_MS);
-	openthread_api_mutex_unlock(ot_context);
+	openthread_mutex_lock();
+	otLinkSetPollPeriod(ot_instance, LOW_LATENCY_POLL_PERIOD_MS);
+	openthread_mutex_unlock();
 	// openthread_set_csl_period_ms(CSL_LOW_LATENCY_PERIOD_MS);
 }
 
 static void openthread_set_normal_latency()
 {
-	struct openthread_context *ot_context = openthread_get_default_context();
+	struct otInstance *ot_instance = openthread_get_default_instance();
 
-	if (is_mtd_in_med_mode(ot_context->instance)) {
+	if (is_mtd_in_med_mode(ot_instance)) {
 		return;
 	}
 
 	LOG_INF("   └── ⏹️  stop low latency");
 
-	openthread_api_mutex_lock(ot_context);
-	otLinkSetPollPeriod(ot_context->instance, 0);
-	openthread_api_mutex_unlock(ot_context);
+	openthread_mutex_lock();
+	otLinkSetPollPeriod(ot_instance, 0);
+	openthread_mutex_unlock();
 	// openthread_set_csl_period_ms(CSL_NORMAL_LATENCY_PERIOD_MS);
 }
 
@@ -294,12 +297,12 @@ void openthread_force_normal_latency(const char *reason)
 
 int openthread_erase_persistent_info(void)
 {
-	struct openthread_context *ot_context = openthread_get_default_context();
+	struct otInstance *ot_instance = openthread_get_default_instance();
 	otError err;
 
-	openthread_api_mutex_lock(ot_context);
-	err = otInstanceErasePersistentInfo(ot_context->instance);
-	openthread_api_mutex_unlock(ot_context);
+	openthread_mutex_lock();
+	err = otInstanceErasePersistentInfo(ot_instance);
+	openthread_mutex_unlock();
 
 	if (err != OT_ERROR_NONE) {
 		return -1;
@@ -313,10 +316,11 @@ int openthread_erase_persistent_info(void)
 int openthread_my_start(void)
 {
 	int ret;
-	struct openthread_context *ot_context = openthread_get_default_context();
+#ifdef CONFIG_OPENTHREAD_MTD_SED
+	struct otInstance *ot_instance = openthread_get_default_instance();
+#endif
 
-	ret = openthread_state_changed_cb_register(ot_context,
-						   &ot_state_chaged_cb);
+	ret = openthread_state_changed_callback_register(&ot_state_chaged_cb);
 	if (ret < 0) {
 		LOG_ERR("Could register callback");
 		return ret;
@@ -325,19 +329,19 @@ int openthread_my_start(void)
 #ifdef CONFIG_OPENTHREAD_MTD_SED
 	k_thread_start(receive_latency_thread);
 
-	openthread_api_mutex_lock(ot_context);
-	otLinkSetPollPeriod(ot_context->instance, CONFIG_OPENTHREAD_POLL_PERIOD);
+	openthread_mutex_lock();
+	otLinkSetPollPeriod(ot_instance, CONFIG_OPENTHREAD_POLL_PERIOD);
 	// Disable child supervision.
 	// If enabled, there will be a child-parent communication every 190s. 
-	otChildSupervisionSetCheckTimeout(ot_context->instance, 0);
-	otChildSupervisionSetInterval(ot_context->instance, 0);
+	otChildSupervisionSetCheckTimeout(ot_instance, 0);
+	otChildSupervisionSetInterval(ot_instance, 0);
 	otThreadSetChildTimeout(
-		ot_context->instance,
+		ot_instance,
 		(int)(CONFIG_OPENTHREAD_POLL_PERIOD / 1000) + 4);
-	openthread_api_mutex_unlock(ot_context);
+	openthread_mutex_unlock();
 #endif
 
-	return openthread_start(ot_context);
+	return openthread_run();
 }
 
 int openthread_wait(uint32_t events)

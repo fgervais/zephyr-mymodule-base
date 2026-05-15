@@ -6,9 +6,15 @@
 #define OT_ROUTABLE_ADDR_SET		BIT(2)
 #define OT_HAS_NEIGHBORS		BIT(3)
 
+#ifdef CONFIG_MY_MODULE_BASE_OPENTHREAD
 void openthread_request_low_latency(const char *reason);
 void openthread_request_normal_latency(const char *reason);
 void openthread_force_normal_latency(const char *reason);
+#else
+static inline void openthread_request_low_latency(const char *reason) {}
+static inline void openthread_request_normal_latency(const char *reason) {}
+static inline void openthread_force_normal_latency(const char *reason) {}
+#endif
 
 int openthread_erase_persistent_info();
 int openthread_my_start(void);

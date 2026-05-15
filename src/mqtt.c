@@ -1,6 +1,8 @@
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/posix/arpa/inet.h>
+#include <zephyr/posix/netdb.h>
 #include <zephyr/random/random.h>
 
 #include <zephyr/logging/log.h>

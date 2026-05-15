@@ -589,8 +589,6 @@ static int get_mqtt_broker_addrinfo(void)
 			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_HOSTNAME,
 			CONFIG_MY_MODULE_BASE_HA_MQTT_SERVER_PORT);
 
-			assert(haddr->ai_addr->sa_family == AF_INET6);
-
 			inet_ntop(
 			    AF_INET6,
 			    &((const struct sockaddr_in6 *)haddr->ai_addr)->sin6_addr,

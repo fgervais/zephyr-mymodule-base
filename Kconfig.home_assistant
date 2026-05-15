@@ -80,10 +80,4 @@ config MY_MODULE_BASE_HA_MQTT_RECEIVE_THREAD_STACK_SIZE
 	help
 	  MQTT receive thread stack size.
 
-config MY_MODULE_BASE_HA_OT_LATENCY_THREAD_STACK_SIZE
-	int "OpenThread latency thread stack size"
-	default 2048
-	help
-	  OpenThread latency thread stack size.
-
 endif # MY_MODULE_BASE_HOME_ASSISTANT

@@ -7,7 +7,7 @@ menuconfig MY_MODULE_BASE_HOME_ASSISTANT
 	select EVENTS
 	select JSON_LIBRARY
 	select MQTT_LIB
-	select NEWLIB_LIBC_FLOAT_PRINTF
+	select REQUIRES_FLOAT_PRINTF
 	select POSIX_API
 
 	select NET_TCP
